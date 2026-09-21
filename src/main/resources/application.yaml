@@ -1,0 +1,3 @@
+spring:
+  application:
+    name: Vehicle-and-Fuel-WorkFlow-BE
