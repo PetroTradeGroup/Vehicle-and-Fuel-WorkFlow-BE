@@ -1,3 +1,14 @@
 spring:
-  application:
-    name: Vehicle-and-Fuel-WorkFlow-BE
+  datasource:
+    url: jdbc:postgresql://localhost:5432/vehicle_fuel_workflow
+    username: postgres
+    password: Kup@kw@sh3
+
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+server:
+  port: 8080
