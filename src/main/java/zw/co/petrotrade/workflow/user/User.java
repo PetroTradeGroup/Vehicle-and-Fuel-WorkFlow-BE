@@ -16,9 +16,17 @@ public class User {
 
     private String password;
 
+    private String employeeNumber;
+
     private String fullName;
 
     private String email;
+
+    private String department;
+
+    private String licenceNumber;
+
+    private String jobTitle;
 
     @Enumerated(EnumType.STRING)
     private Role role;

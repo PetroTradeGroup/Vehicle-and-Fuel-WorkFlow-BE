@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/vehicle_fuel_workflow
+    url: jdbc:postgresql://localhost:5432/vehiclefuelworkflow
     username: postgres
-    password: Kup@kw@sh3
+    password: tadiewa
 
 
   jpa:
@@ -10,5 +10,22 @@ spring:
       ddl-auto: update
     show-sql: true
 
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: CHANGE_ME
+    password: CHANGE_ME
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+workflow:
+  notifications:
+    hr-manager-email: CHANGE_ME@petrotrade.co.zw
+    it-department-email: CHANGE_ME@petrotrade.co.zw
+
 server:
-  port: 8080
+  port: 8095

@@ -14,6 +14,8 @@ public class FuelTransaction {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private Long requestId;
+
     private Long fuelCardId;
 
     private Long vehicleId;
