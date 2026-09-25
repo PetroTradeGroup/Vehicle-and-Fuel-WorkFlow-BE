@@ -6,7 +6,6 @@ import zw.co.petrotrade.workflow.transport.RequestStatus;
 import zw.co.petrotrade.workflow.transport.TransportRequest;
 import zw.co.petrotrade.workflow.transport.TransportRequestRepository;
 
-import java.time.LocalDateTime;
 import java.util.Map;
 
 @Service
@@ -15,20 +14,17 @@ public class ApprovalService {
 
     private static final Map<ApprovalLevel, RequestStatus> REQUIRED_STATUS = Map.of(
             ApprovalLevel.HOD, RequestStatus.PENDING_HOD,
-            ApprovalLevel.HR, RequestStatus.APPROVED_HOD,
-            ApprovalLevel.ADMIN, RequestStatus.APPROVED_HR
+            ApprovalLevel.HR_ADMIN, RequestStatus.APPROVED_HOD
     );
 
     private static final Map<ApprovalLevel, RequestStatus> APPROVED_STATUS = Map.of(
             ApprovalLevel.HOD, RequestStatus.APPROVED_HOD,
-            ApprovalLevel.HR, RequestStatus.APPROVED_HR,
-            ApprovalLevel.ADMIN, RequestStatus.APPROVED_ADMIN
+            ApprovalLevel.HR_ADMIN, RequestStatus.APPROVED_HR_ADMIN
     );
 
     private static final Map<ApprovalLevel, RequestStatus> REJECTED_STATUS = Map.of(
             ApprovalLevel.HOD, RequestStatus.REJECTED_HOD,
-            ApprovalLevel.HR, RequestStatus.REJECTED_HR,
-            ApprovalLevel.ADMIN, RequestStatus.REJECTED_ADMIN
+            ApprovalLevel.HR_ADMIN, RequestStatus.REJECTED_HR_ADMIN
     );
 
     private final ApprovalRepository approvalRepository;
@@ -57,17 +53,10 @@ public class ApprovalService {
                             + " approval (current status: " + request.getStatus() + ")");
         }
 
-        Approval approval = new Approval();
-        approval.setRequestId(requestId);
-        approval.setApprover(approver);
-        approval.setLevel(level);
-        approval.setComments(comments);
-        approval.setStatus(approved ? ApprovalStatus.APPROVED : ApprovalStatus.REJECTED);
-        approval.setApprovalDate(LocalDateTime.now());
-
         request.setStatus(approved ? APPROVED_STATUS.get(level) : REJECTED_STATUS.get(level));
         requestRepository.save(request);
 
-        return approvalRepository.save(approval);
+        return approvalRepository.save(Approval.record(
+                ApprovalSubject.TRANSPORT_REQUEST, requestId, level, approved, approver, comments));
     }
 }

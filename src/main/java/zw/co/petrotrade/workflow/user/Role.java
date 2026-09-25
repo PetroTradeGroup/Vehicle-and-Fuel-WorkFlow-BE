@@ -4,8 +4,7 @@ public enum Role {
 
     DRIVER,
     HOD,
-    HR_MANAGER,
-    ADMIN_MANAGER,
+    HR_ADMIN_MANAGER,
     VEHICLE_ADMIN,
     SYSTEM_ADMIN
 }

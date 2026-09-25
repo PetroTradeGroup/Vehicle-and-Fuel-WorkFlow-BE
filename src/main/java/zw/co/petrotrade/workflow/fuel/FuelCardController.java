@@ -2,10 +2,12 @@ package zw.co.petrotrade.workflow.fuel;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import zw.co.petrotrade.workflow.approval.Approval;
 import zw.co.petrotrade.workflow.approval.dto.ApprovalResponse;
 import zw.co.petrotrade.workflow.fuel.dto.FuelApprovalRequest;
+import zw.co.petrotrade.workflow.fuel.dto.FuelCardRequest;
 import zw.co.petrotrade.workflow.fuel.dto.FuelCardResponse;
 
 import java.util.List;
@@ -16,7 +18,14 @@ import java.util.List;
 public class FuelCardController {
 
     private final FuelCardRepository repository;
+    private final FuelCardService fuelCardService;
     private final FuelApprovalService fuelApprovalService;
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public FuelCardResponse create(@Valid @RequestBody FuelCardRequest request) {
+        return FuelCardResponse.from(fuelCardService.create(request.toEntity()));
+    }
 
     @GetMapping
     public List<FuelCardResponse> list() {
@@ -32,8 +41,8 @@ public class FuelCardController {
     public ApprovalResponse approveFuel(@Valid @RequestBody FuelApprovalRequest request) {
         Approval approval = fuelApprovalService.decide(
                 request.requestId(),
-                request.fuelCardId(),
                 request.approved(),
+                request.usePersonalCard(),
                 request.approver(),
                 request.comments());
         return ApprovalResponse.from(approval);

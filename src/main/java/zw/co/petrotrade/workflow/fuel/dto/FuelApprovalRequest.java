@@ -5,8 +5,8 @@ import jakarta.validation.constraints.NotNull;
 
 public record FuelApprovalRequest(
         @NotNull Long requestId,
-        @NotNull Long fuelCardId,
         boolean approved,
+        boolean usePersonalCard,
         @NotBlank String approver,
         String comments) {
 }

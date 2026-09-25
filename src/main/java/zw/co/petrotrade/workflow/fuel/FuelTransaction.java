@@ -14,7 +14,10 @@ public class FuelTransaction {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // set for trip fuel; stationTopUpId is set instead for generator top-ups
     private Long requestId;
+
+    private Long stationTopUpId;
 
     private Long fuelCardId;
 

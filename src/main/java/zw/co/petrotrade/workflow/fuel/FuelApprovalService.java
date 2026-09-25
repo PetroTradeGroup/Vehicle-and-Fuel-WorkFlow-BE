@@ -2,10 +2,11 @@ package zw.co.petrotrade.workflow.fuel;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import zw.co.petrotrade.workflow.approval.Approval;
 import zw.co.petrotrade.workflow.approval.ApprovalLevel;
 import zw.co.petrotrade.workflow.approval.ApprovalRepository;
-import zw.co.petrotrade.workflow.approval.ApprovalStatus;
+import zw.co.petrotrade.workflow.approval.ApprovalSubject;
 import zw.co.petrotrade.workflow.transport.RequestStatus;
 import zw.co.petrotrade.workflow.transport.TransportRequest;
 import zw.co.petrotrade.workflow.transport.TransportRequestRepository;
@@ -19,15 +20,16 @@ import java.time.LocalDateTime;
 public class FuelApprovalService {
 
     private final TransportRequestRepository requestRepository;
-    private final FuelCardRepository fuelCardRepository;
     private final FuelTransactionRepository fuelTransactionRepository;
     private final ApprovalRepository approvalRepository;
     private final VehicleAllocationRepository vehicleAllocationRepository;
+    private final FuelCardService fuelCardService;
 
+    @Transactional
     public Approval decide(
             Long requestId,
-            Long fuelCardId,
             boolean approved,
+            boolean usePersonalCard,
             String approver,
             String comments) {
 
@@ -40,23 +42,15 @@ public class FuelApprovalService {
         }
 
         if (approved) {
-            FuelCard card = fuelCardRepository.findById(fuelCardId).orElseThrow();
-
-            if (card.getBalanceLitres() < request.getFuelRequiredLitres()) {
-                throw new IllegalStateException(
-                        "Fuel card " + fuelCardId + " balance (" + card.getBalanceLitres()
-                                + "L) is insufficient for " + request.getFuelRequiredLitres() + "L");
-            }
-
-            card.setBalanceLitres(card.getBalanceLitres() - request.getFuelRequiredLitres());
-            fuelCardRepository.save(card);
-
             VehicleAllocation allocation =
                     vehicleAllocationRepository.findByRequestId(requestId).orElseThrow();
 
+            FuelCard card = fuelCardService.credit(
+                    resolveCard(request, allocation, usePersonalCard), request.getFuelRequiredLitres());
+
             FuelTransaction transaction = new FuelTransaction();
             transaction.setRequestId(requestId);
-            transaction.setFuelCardId(fuelCardId);
+            transaction.setFuelCardId(card.getId());
             transaction.setVehicleId(allocation.getVehicleId());
             transaction.setDriverId(request.getDriverId());
             transaction.setAllocatedLitres(request.getFuelRequiredLitres());
@@ -72,14 +66,13 @@ public class FuelApprovalService {
 
         requestRepository.save(request);
 
-        Approval approval = new Approval();
-        approval.setRequestId(requestId);
-        approval.setApprover(approver);
-        approval.setLevel(ApprovalLevel.FUEL);
-        approval.setComments(comments);
-        approval.setStatus(approved ? ApprovalStatus.APPROVED : ApprovalStatus.REJECTED);
-        approval.setApprovalDate(LocalDateTime.now());
+        return approvalRepository.save(Approval.record(
+                ApprovalSubject.TRANSPORT_REQUEST, requestId, ApprovalLevel.FUEL, approved, approver, comments));
+    }
 
-        return approvalRepository.save(approval);
+    private FuelCard resolveCard(TransportRequest request, VehicleAllocation allocation, boolean usePersonalCard) {
+        return usePersonalCard
+                ? fuelCardService.findActiveCard(CardHolderType.USER, request.getDriverId())
+                : fuelCardService.findActiveCard(CardHolderType.VEHICLE, allocation.getVehicleId());
     }
 }

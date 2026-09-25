@@ -20,9 +20,9 @@ public class VehicleAllocationService {
 
         TransportRequest request = requestRepository.findById(requestId).orElseThrow();
 
-        if (request.getStatus() != RequestStatus.APPROVED_ADMIN) {
+        if (request.getStatus() != RequestStatus.APPROVED_HR_ADMIN) {
             throw new IllegalStateException(
-                    "Request " + requestId + " has not completed HOD/HR/Admin approval (current status: "
+                    "Request " + requestId + " has not completed HOD and HR & Admin approval (current status: "
                             + request.getStatus() + ")");
         }
 

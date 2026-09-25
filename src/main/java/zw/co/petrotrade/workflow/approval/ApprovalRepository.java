@@ -6,5 +6,5 @@ import java.util.List;
 
 public interface ApprovalRepository extends JpaRepository<Approval, Long> {
 
-    List<Approval> findByRequestIdOrderByApprovalDateAsc(Long requestId);
+    List<Approval> findBySubjectAndRequestIdOrderByApprovalDateAsc(ApprovalSubject subject, Long requestId);
 }

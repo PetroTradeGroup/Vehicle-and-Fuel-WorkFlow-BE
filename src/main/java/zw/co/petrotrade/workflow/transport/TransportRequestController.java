@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import zw.co.petrotrade.workflow.approval.ApprovalRepository;
+import zw.co.petrotrade.workflow.approval.ApprovalSubject;
 import zw.co.petrotrade.workflow.transport.dto.RequestAuditResponse;
 import zw.co.petrotrade.workflow.transport.dto.TransportRequestCreateRequest;
 import zw.co.petrotrade.workflow.transport.dto.TransportRequestResponse;
@@ -34,7 +35,8 @@ public class TransportRequestController {
         TransportRequest request = requestRepository.findById(id).orElseThrow();
         RequestAudit audit = new RequestAudit(
                 request,
-                approvalRepository.findByRequestIdOrderByApprovalDateAsc(id),
+                approvalRepository.findBySubjectAndRequestIdOrderByApprovalDateAsc(
+                        ApprovalSubject.TRANSPORT_REQUEST, id),
                 vehicleAllocationRepository.findByRequestId(id).orElse(null));
         return RequestAuditResponse.from(audit);
     }
