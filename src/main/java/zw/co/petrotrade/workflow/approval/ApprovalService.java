@@ -1,6 +1,7 @@
 package zw.co.petrotrade.workflow.approval;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import zw.co.petrotrade.workflow.transport.RequestStatus;
 import zw.co.petrotrade.workflow.transport.TransportRequest;
@@ -9,6 +10,7 @@ import zw.co.petrotrade.workflow.transport.TransportRequestRepository;
 import java.util.Map;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class ApprovalService {
 
@@ -54,7 +56,8 @@ public class ApprovalService {
         }
 
         request.setStatus(approved ? APPROVED_STATUS.get(level) : REJECTED_STATUS.get(level));
-        requestRepository.save(request);
+        log.info("Approval request {} has been decided", request);
+        TransportRequest px=     requestRepository.save(request);
 
         return approvalRepository.save(Approval.record(
                 ApprovalSubject.TRANSPORT_REQUEST, requestId, level, approved, approver, comments));

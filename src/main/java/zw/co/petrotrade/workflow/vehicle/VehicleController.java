@@ -14,7 +14,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class VehicleController {
 
-    private final VehicleService service;
+    private final VehicleServiceImp service;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)

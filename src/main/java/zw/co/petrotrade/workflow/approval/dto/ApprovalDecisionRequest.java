@@ -9,5 +9,7 @@ public record ApprovalDecisionRequest(
         @NotNull ApprovalLevel level,
         boolean approved,
         @NotBlank String approver,
-        String comments) {
+        String comments
+
+) {
 }

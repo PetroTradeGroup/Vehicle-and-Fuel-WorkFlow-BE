@@ -1,7 +1,17 @@
 package zw.co.petrotrade.workflow.fuel;
 
-public enum FuelType {
+import jakarta.persistence.*;
+import lombok.Data;
 
-    DIESEL,
-    PETROL
+@Data
+@Entity
+@Table(name = "fueltype")
+public class FuelType {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    String name;
+    String code;
+
 }

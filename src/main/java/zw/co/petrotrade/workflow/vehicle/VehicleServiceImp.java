@@ -10,7 +10,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-public class VehicleService {
+public class VehicleServiceImp implements VehicleService {
 
     private final VehicleRepository repository;
     private final FuelCardRepository fuelCardRepository;

@@ -17,6 +17,16 @@ public class Approval {
     // what requestId points at: a transport request or a station top-up
     @Enumerated(EnumType.STRING)
     private ApprovalSubject subject;
+    private Double distance;
+
+    private String destination;
+
+    private Double fuel;
+
+    private String fueltype;
+    private Double price;
+    private String comments;
+    @Enumerated(EnumType.STRING)
 
     private Long requestId;
 
@@ -28,7 +38,6 @@ public class Approval {
     @Enumerated(EnumType.STRING)
     private ApprovalStatus status;
 
-    private String comments;
 
     private LocalDateTime approvalDate;
 

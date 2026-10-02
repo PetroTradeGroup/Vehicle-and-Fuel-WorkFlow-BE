@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
-public class VehicleAllocationService {
+public class VehicleAllocationServiceImp implements VehicleAllocationService {
 
     private final VehicleAllocationRepository allocationRepository;
     private final VehicleRepository vehicleRepository;

@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/vehiclefuelworkflow
+    url: jdbc:postgresql://localhost:5432/vehicle_fuel_workflow
     username: postgres
-    password: tadiewa
+    password: Kup@kw@sh3
 
 
   jpa:

@@ -11,7 +11,7 @@ import zw.co.petrotrade.workflow.vehicle.dto.VehicleAllocationResponse;
 @RequiredArgsConstructor
 public class VehicleAllocationController {
 
-    private final VehicleAllocationService service;
+    private final VehicleAllocationServiceImp service;
 
     @PostMapping
     public VehicleAllocationResponse allocate(@Valid @RequestBody VehicleAllocationRequest request) {
