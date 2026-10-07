@@ -50,10 +50,12 @@ public class VehicleServiceImp implements VehicleService {
     public void delete(Long id) {
         Vehicle vehicle = findById(id);
         if (vehicle.getStatus() == VehicleStatus.ALLOCATED) {
-            throw new IllegalStateException("Vehicle " + id + " is currently allocated and cannot be deleted");
+            throw new IllegalStateException("Vehicle " + vehicle.getRegistrationNumber()
+                    + " is out on a trip, so it can't be deleted until it's returned.");
         }
         if (fuelCardRepository.findByHolderTypeAndHolderId(CardHolderType.VEHICLE, id).isPresent()) {
-            throw new IllegalStateException("Vehicle " + id + " still has a fuel card registered to it");
+            throw new IllegalStateException("Vehicle " + vehicle.getRegistrationNumber()
+                    + " has a fuel card registered to it, so it can't be deleted.");
         }
         repository.delete(vehicle);
     }

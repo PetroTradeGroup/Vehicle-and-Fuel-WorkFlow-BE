@@ -27,7 +27,7 @@ public class StationTopUpService {
     private final FuelTransactionRepository fuelTransactionRepository;
     private final ApprovalRepository approvalRepository;
 
-    public StationTopUp create(StationTopUpRequest request) {
+    public StationTopUp create(StationTopUpRequest request, String requestedBy) {
         stationRepository.findById(request.stationId()).orElseThrow();
         // fail now rather than at approval if the station has nothing to credit
         fuelCardService.findActiveCard(CardHolderType.STATION, request.stationId());
@@ -36,7 +36,7 @@ public class StationTopUpService {
         topUp.setStationId(request.stationId());
         topUp.setLitres(request.litres());
         topUp.setReason(request.reason());
-        topUp.setRequestedBy(request.requestedBy());
+        topUp.setRequestedBy(requestedBy);
         topUp.setRequestedAt(LocalDateTime.now());
         topUp.setStatus(TopUpStatus.PENDING_APPROVAL);
         return repository.save(topUp);
@@ -44,6 +44,10 @@ public class StationTopUpService {
 
     public List<StationTopUp> findAll() {
         return repository.findAll();
+    }
+
+    public List<StationTopUp> findByStation(Long stationId) {
+        return repository.findByStationIdOrderByIdDesc(stationId);
     }
 
     public StationTopUp findById(Long id) {
@@ -60,8 +64,8 @@ public class StationTopUpService {
         StationTopUp topUp = findById(id);
 
         if (topUp.getStatus() != TopUpStatus.PENDING_APPROVAL) {
-            throw new IllegalStateException(
-                    "Top-up " + id + " is not awaiting approval (current status: " + topUp.getStatus() + ")");
+            throw new IllegalStateException("This top-up has already been "
+                    + (topUp.getStatus() == TopUpStatus.COMPLETED ? "approved" : "rejected") + ". Refresh to see the latest.");
         }
 
         if (approved) {

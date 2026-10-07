@@ -1,5 +1,6 @@
 package zw.co.petrotrade.workflow.station;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -18,6 +19,7 @@ public class StationController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
     public StationResponse create(@Valid @RequestBody StationRequest request) {
         if (repository.existsByName(request.name())) {
             throw new IllegalStateException("Station " + request.name() + " already exists");

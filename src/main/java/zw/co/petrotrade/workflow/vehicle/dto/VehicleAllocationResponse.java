@@ -9,7 +9,11 @@ public record VehicleAllocationResponse(
         Long requestId,
         Long vehicleId,
         String allocatedBy,
-        LocalDateTime allocationDate) {
+        LocalDateTime allocationDate,
+        String returnedBy,
+        LocalDateTime returnDate,
+        Double fuelUsedLitres,
+        Double distanceTravelledKm) {
 
     public static VehicleAllocationResponse from(VehicleAllocation allocation) {
         return new VehicleAllocationResponse(
@@ -17,6 +21,10 @@ public record VehicleAllocationResponse(
                 allocation.getRequestId(),
                 allocation.getVehicleId(),
                 allocation.getAllocatedBy(),
-                allocation.getAllocationDate());
+                allocation.getAllocationDate(),
+                allocation.getReturnedBy(),
+                allocation.getReturnDate(),
+                allocation.getFuelUsedLitres(),
+                allocation.getDistanceTravelledKm());
     }
 }

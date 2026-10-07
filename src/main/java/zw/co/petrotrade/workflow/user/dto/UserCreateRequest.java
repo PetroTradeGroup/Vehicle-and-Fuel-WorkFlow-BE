@@ -7,26 +7,28 @@ import zw.co.petrotrade.workflow.user.User;
 
 public record UserCreateRequest(
         @NotBlank String username,
-        @NotBlank String password,
+        // temporary password for a new Keycloak login; not needed if the username already has one
+        String password,
         String employeeNumber,
         @NotBlank String fullName,
         String email,
-        String department,
+        Long departmentId,
         String licenceNumber,
         String jobTitle,
-        @NotNull Role role) {
+        @NotNull Role role,
+        // required for a station admin: the station they run
+        Long stationId) {
 
     public User toEntity() {
         User user = new User();
         user.setUsername(username);
-        user.setPassword(password);
         user.setEmployeeNumber(employeeNumber);
         user.setFullName(fullName);
         user.setEmail(email);
-        user.setDepartment(department);
         user.setLicenceNumber(licenceNumber);
         user.setJobTitle(jobTitle);
         user.setRole(role);
+        user.setStationId(role == Role.STATION_ADMIN ? stationId : null);
         return user;
     }
 }

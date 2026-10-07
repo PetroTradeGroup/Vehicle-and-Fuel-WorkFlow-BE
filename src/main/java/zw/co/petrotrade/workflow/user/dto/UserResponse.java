@@ -9,10 +9,12 @@ public record UserResponse(
         String employeeNumber,
         String fullName,
         String email,
+        Long departmentId,
         String department,
         String licenceNumber,
         String jobTitle,
-        Role role) {
+        Role role,
+        Long stationId) {
 
     public static UserResponse from(User user) {
         return new UserResponse(
@@ -21,9 +23,11 @@ public record UserResponse(
                 user.getEmployeeNumber(),
                 user.getFullName(),
                 user.getEmail(),
-                user.getDepartment(),
+                user.getDepartment() == null ? null : user.getDepartment().getId(),
+                user.getDepartment() == null ? null : user.getDepartment().getName(),
                 user.getLicenceNumber(),
                 user.getJobTitle(),
-                user.getRole());
+                user.getRole(),
+                user.getStationId());
     }
 }

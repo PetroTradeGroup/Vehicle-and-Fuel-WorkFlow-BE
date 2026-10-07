@@ -32,10 +32,11 @@ public class FuelCardService {
 
     public FuelCard findActiveCard(CardHolderType holderType, Long holderId) {
         FuelCard card = repository.findByHolderTypeAndHolderId(holderType, holderId)
-                .orElseThrow(() -> new IllegalStateException(
-                        holderType + " " + holderId + " has no fuel card registered"));
+                .orElseThrow(() -> new IllegalStateException("This "
+                        + switch (holderType) { case VEHICLE -> "vehicle"; case USER -> "driver"; case STATION -> "station"; }
+                        + " has no fuel card yet. Register one on the Fuel Cards page first."));
         if (!Boolean.TRUE.equals(card.getActive())) {
-            throw new IllegalStateException("Fuel card " + card.getCardNumber() + " is not active");
+            throw new IllegalStateException("Fuel card " + card.getCardNumber() + " is switched off, so fuel can't be loaded onto it.");
         }
         return card;
     }

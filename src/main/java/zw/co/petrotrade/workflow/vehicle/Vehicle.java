@@ -7,6 +7,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import lombok.Data;
 
 @Data
@@ -26,4 +27,8 @@ public class Vehicle {
 
     @Enumerated(EnumType.STRING)
     private VehicleStatus status;
+
+    // two concurrent allocations of the same vehicle: the second save fails instead of double-booking
+    @Version
+    private Long version;
 }

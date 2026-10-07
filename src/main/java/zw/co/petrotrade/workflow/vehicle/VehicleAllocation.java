@@ -21,4 +21,13 @@ public class VehicleAllocation {
     private String allocatedBy;
 
     private LocalDateTime allocationDate;
+
+    private String returnedBy;
+
+    private LocalDateTime returnDate;
+
+    // recorded on return: what the trip actually took
+    private Double fuelUsedLitres;
+
+    private Double distanceTravelledKm;
 }

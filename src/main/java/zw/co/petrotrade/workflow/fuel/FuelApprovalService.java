@@ -10,8 +10,11 @@ import zw.co.petrotrade.workflow.approval.ApprovalSubject;
 import zw.co.petrotrade.workflow.transport.RequestStatus;
 import zw.co.petrotrade.workflow.transport.TransportRequest;
 import zw.co.petrotrade.workflow.transport.TransportRequestRepository;
+import zw.co.petrotrade.workflow.vehicle.Vehicle;
 import zw.co.petrotrade.workflow.vehicle.VehicleAllocation;
 import zw.co.petrotrade.workflow.vehicle.VehicleAllocationRepository;
+import zw.co.petrotrade.workflow.vehicle.VehicleRepository;
+import zw.co.petrotrade.workflow.vehicle.VehicleStatus;
 
 import java.time.LocalDateTime;
 
@@ -24,6 +27,7 @@ public class FuelApprovalService {
     private final ApprovalRepository approvalRepository;
     private final VehicleAllocationRepository vehicleAllocationRepository;
     private final FuelCardService fuelCardService;
+    private final VehicleRepository vehicleRepository;
 
     @Transactional
     public Approval decide(
@@ -36,15 +40,14 @@ public class FuelApprovalService {
         TransportRequest request = requestRepository.findById(requestId).orElseThrow();
 
         if (request.getStatus() != RequestStatus.FUEL_CALCULATED) {
-            throw new IllegalStateException(
-                    "Request " + requestId + " is not awaiting fuel approval (current status: "
-                            + request.getStatus() + ")");
+            throw new IllegalStateException("This request isn't waiting for fuel approval. "
+                    + request.getStatus().alreadyMovedOn());
         }
 
-        if (approved) {
-            VehicleAllocation allocation =
-                    vehicleAllocationRepository.findByRequestId(requestId).orElseThrow();
+        VehicleAllocation allocation =
+                vehicleAllocationRepository.findByRequestId(requestId).orElseThrow();
 
+        if (approved) {
             FuelCard card = fuelCardService.credit(
                     resolveCard(request, allocation, usePersonalCard), request.getFuelRequiredLitres());
 
@@ -59,9 +62,15 @@ public class FuelApprovalService {
             transaction.setTransactionDate(LocalDateTime.now());
             fuelTransactionRepository.save(transaction);
 
-            request.setStatus(RequestStatus.COMPLETED);
+            // the trip is still ahead; the vehicle is released when it is returned
+            request.setStatus(RequestStatus.FUEL_APPROVED);
         } else {
             request.setStatus(RequestStatus.FUEL_REJECTED);
+
+            // no fuel means no trip, so the vehicle is free for the next request
+            Vehicle vehicle = vehicleRepository.findById(allocation.getVehicleId()).orElseThrow();
+            vehicle.setStatus(VehicleStatus.AVAILABLE);
+            vehicleRepository.save(vehicle);
         }
 
         requestRepository.save(request);

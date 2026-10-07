@@ -26,7 +26,6 @@ public class Approval {
     private String fueltype;
     private Double price;
     private String comments;
-    @Enumerated(EnumType.STRING)
 
     private Long requestId;
 

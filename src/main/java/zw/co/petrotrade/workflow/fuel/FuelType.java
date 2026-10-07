@@ -5,13 +5,16 @@ import lombok.Data;
 
 @Data
 @Entity
-@Table(name = "fueltype")
+@Table(name = "fuel_types")
 public class FuelType {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    String name;
-    String code;
+    @Column(nullable = false)
+    private String name;
 
+    @Column(unique = true, nullable = false)
+    private String code;
 }

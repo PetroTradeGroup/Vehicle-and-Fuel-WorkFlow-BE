@@ -1,9 +1,7 @@
 package zw.co.petrotrade.workflow.station.dto;
 
-import jakarta.validation.constraints.NotBlank;
-
+// the approver is the signed-in user
 public record TopUpDecisionRequest(
         boolean approved,
-        @NotBlank String approver,
         String comments) {
 }

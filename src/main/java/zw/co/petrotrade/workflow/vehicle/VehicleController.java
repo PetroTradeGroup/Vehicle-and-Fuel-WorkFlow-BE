@@ -1,5 +1,6 @@
 package zw.co.petrotrade.workflow.vehicle;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -18,6 +19,7 @@ public class VehicleController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAnyRole('VEHICLE_ADMIN', 'SYSTEM_ADMIN')")
     public VehicleResponse create(@Valid @RequestBody VehicleRequest request) {
         return VehicleResponse.from(service.create(request));
     }
@@ -33,12 +35,14 @@ public class VehicleController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('VEHICLE_ADMIN', 'SYSTEM_ADMIN')")
     public VehicleResponse update(@PathVariable Long id, @Valid @RequestBody VehicleRequest request) {
         return VehicleResponse.from(service.update(id, request));
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAnyRole('VEHICLE_ADMIN', 'SYSTEM_ADMIN')")
     public void delete(@PathVariable Long id) {
         service.delete(id);
     }

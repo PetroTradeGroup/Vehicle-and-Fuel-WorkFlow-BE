@@ -19,7 +19,6 @@ public class ApprovalController {
                 request.requestId(),
                 request.level(),
                 request.approved(),
-                request.approver(),
                 request.comments());
 
 

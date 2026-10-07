@@ -1,12 +1,15 @@
 package zw.co.petrotrade.workflow.fuel;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 import zw.co.petrotrade.workflow.transport.TransportRequest;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class NotificationService {
@@ -31,6 +34,11 @@ public class NotificationService {
                         + "Destination: " + request.getDestination() + "\n"
                         + "Fuel required: " + request.getFuelRequiredLitres() + " litres\n");
 
-        mailSender.send(message);
+        // the request is already saved; a mail outage must not fail the workflow step
+        try {
+            mailSender.send(message);
+        } catch (MailException e) {
+            log.error("Could not send fuel request notification for request {}", request.getId(), e);
+        }
     }
 }

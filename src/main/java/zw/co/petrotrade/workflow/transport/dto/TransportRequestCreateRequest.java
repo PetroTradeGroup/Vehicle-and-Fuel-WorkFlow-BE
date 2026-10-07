@@ -8,32 +8,30 @@ import zw.co.petrotrade.workflow.transport.TransportRequest;
 
 import java.time.LocalDate;
 
+// driverId defaults to the signed-in user; createdBy is always the signed-in user
 public record TransportRequestCreateRequest(
-        @NotNull Long driverId,
+        Long driverId,
         @NotNull LocalDate requiredFrom,
         @NotNull LocalDate requiredTo,
         @NotBlank String purpose,
         @NotBlank String destination,
         @NotBlank String startingPoint,
         @NotNull Double distanceKm,
-        FuelType fuelType,
+        Long fuelTypeId,
         String requestedVehicleReg,
         Double tollFees,
-        @NotBlank String createdBy,
         String signature,
         String notes) {
 
-    public TransportRequest toEntity() {
+    public TransportRequest toEntity(Long driverId, String createdBy, FuelType fuelType) {
         TransportRequest request = new TransportRequest();
         request.setDriverId(driverId);
         LocalDate today = LocalDate.now();
         if (requiredFrom.isAfter(requiredTo)) {
-            throw new DateRequiredException(
-                    "Required-from date " + requiredFrom + " must not be after required-to date " + requiredTo);
+            throw new DateRequiredException("The end date can't be before the start date.");
         }
         if (requiredFrom.isBefore(today)) {
-            throw new DateRequiredException(
-                    "Required-from date " + requiredFrom + " must not be in the past");
+            throw new DateRequiredException("The trip can't start in the past. Pick today or a later date.");
         }
         request.setRequiredFrom(requiredFrom);
         request.setRequiredTo(requiredTo);

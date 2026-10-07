@@ -1,0 +1,9 @@
+target/
+.idea/
+.vscode/
+.git/
+scripts/
+.env
+# local secrets must never end up in an image
+src/main/resources/application-local.yaml
+docker/

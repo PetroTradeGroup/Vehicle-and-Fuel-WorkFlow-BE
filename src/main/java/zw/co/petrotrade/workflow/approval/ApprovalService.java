@@ -2,8 +2,12 @@ package zw.co.petrotrade.workflow.approval;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import zw.co.petrotrade.workflow.security.CurrentUser;
 import zw.co.petrotrade.workflow.transport.RequestStatus;
+import zw.co.petrotrade.workflow.user.Role;
+import zw.co.petrotrade.workflow.user.User;
 import zw.co.petrotrade.workflow.transport.TransportRequest;
 import zw.co.petrotrade.workflow.transport.TransportRequestRepository;
 
@@ -31,12 +35,12 @@ public class ApprovalService {
 
     private final ApprovalRepository approvalRepository;
     private final TransportRequestRepository requestRepository;
+    private final CurrentUser currentUser;
 
     public Approval decide(
             Long requestId,
             ApprovalLevel level,
             boolean approved,
-            String approver,
             String comments) {
 
         if (level == ApprovalLevel.FUEL) {
@@ -48,11 +52,23 @@ public class ApprovalService {
                 requestRepository.findById(requestId)
                         .orElseThrow();
 
+        User approver = currentUser.get();
+        if (level == ApprovalLevel.HOD) {
+            currentUser.require(Role.HOD);
+            // a head of department only decides for their own department
+            if (approver.getDepartment() == null || !approver.getDepartment().getId().equals(request.getDepartmentId())) {
+                throw new AccessDeniedException("Only the head of the " + request.getDepartment()
+                        + " department can approve this request");
+            }
+        } else {
+            currentUser.require(Role.HR_ADMIN_MANAGER);
+        }
+
         RequestStatus required = REQUIRED_STATUS.get(level);
         if (request.getStatus() != required) {
-            throw new IllegalStateException(
-                    "Request " + requestId + " is not awaiting " + level
-                            + " approval (current status: " + request.getStatus() + ")");
+            throw new IllegalStateException("This request isn't at the "
+                    + (level == ApprovalLevel.HOD ? "department head" : "HR & Admin") + " step. "
+                    + request.getStatus().alreadyMovedOn());
         }
 
         request.setStatus(approved ? APPROVED_STATUS.get(level) : REJECTED_STATUS.get(level));
@@ -60,6 +76,6 @@ public class ApprovalService {
         TransportRequest px=     requestRepository.save(request);
 
         return approvalRepository.save(Approval.record(
-                ApprovalSubject.TRANSPORT_REQUEST, requestId, level, approved, approver, comments));
+                ApprovalSubject.TRANSPORT_REQUEST, requestId, level, approved, approver.getFullName(), comments));
     }
 }

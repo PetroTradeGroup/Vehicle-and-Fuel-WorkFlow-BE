@@ -31,3 +31,11 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Local config (secrets) ###
+application-local.yaml
+
+### Deployment settings (secrets) ###
+.env
+# TLS certificate + key for the HTTPS proxy
+docker/nginx/certs/

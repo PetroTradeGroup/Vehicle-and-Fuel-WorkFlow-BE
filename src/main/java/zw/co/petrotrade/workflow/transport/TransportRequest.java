@@ -16,7 +16,9 @@ public class TransportRequest {
     private Long id;
     private Long driverId;
     private String driverName;
+    // the department's name when the request was made (kept as it was if the department is renamed later)
     private String department;
+    private Long departmentId;
     private String jobTitle;
     private String licenceNumber;
     private LocalDate requiredFrom;
@@ -26,7 +28,7 @@ public class TransportRequest {
     private String startingPoint;
     private Double distanceKm;
     private Double fuelRequiredLitres;
-    @Enumerated(EnumType.STRING)
+    @ManyToOne
     private FuelType fuelType;
     private String requestedVehicleReg;
     private Double tollFees;

@@ -1,6 +1,6 @@
 package zw.co.petrotrade.workflow.transport.dto;
 
-import zw.co.petrotrade.workflow.fuel.FuelType;
+import zw.co.petrotrade.workflow.fuel.dto.FuelTypeResponse;
 import zw.co.petrotrade.workflow.transport.RequestStatus;
 import zw.co.petrotrade.workflow.transport.TransportRequest;
 
@@ -11,6 +11,7 @@ public record TransportRequestResponse(
         Long driverId,
         String driverName,
         String department,
+        Long departmentId,
         String jobTitle,
         String licenceNumber,
         LocalDate requiredFrom,
@@ -20,7 +21,7 @@ public record TransportRequestResponse(
         String startingPoint,
         Double distanceKm,
         Double fuelRequiredLitres,
-        FuelType fuelType,
+        FuelTypeResponse fuelType,
         String requestedVehicleReg,
         Double tollFees,
         String createdBy,
@@ -34,6 +35,7 @@ public record TransportRequestResponse(
                 request.getDriverId(),
                 request.getDriverName(),
                 request.getDepartment(),
+                request.getDepartmentId(),
                 request.getJobTitle(),
                 request.getLicenceNumber(),
                 request.getRequiredFrom(),
@@ -43,7 +45,7 @@ public record TransportRequestResponse(
                 request.getStartingPoint(),
                 request.getDistanceKm(),
                 request.getFuelRequiredLitres(),
-                request.getFuelType(),
+                FuelTypeResponse.from(request.getFuelType()),
                 request.getRequestedVehicleReg(),
                 request.getTollFees(),
                 request.getCreatedBy(),

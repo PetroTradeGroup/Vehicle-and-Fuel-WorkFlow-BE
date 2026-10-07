@@ -1,0 +1,81 @@
+
+services:
+  vehicle-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${DB_NAME:-vehiclefuelworkflow}
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+
+    ports:
+      - "127.0.0.1:${DB_HOST_PORT:-5435}:5432"
+    volumes:
+      - vehicle_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+
+  be:
+    image: tadiewa/vehicle-workflow-be:${IMAGE_TAG:-latest}
+    build: .
+    depends_on:
+      vehicle-db:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://vehicle-db:5432/${DB_NAME:-vehiclefuelworkflow}
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD}
+      KEYCLOAK_ISSUER_URI: ${KEYCLOAK_PUBLIC_URL:?set KEYCLOAK_PUBLIC_URL in .env}/realms/${KEYCLOAK_REALM:-helpdesk}
+      KEYCLOAK_JWK_SET_URI: ${KEYCLOAK_INTERNAL_URL:-http://keycloak:8080}/realms/${KEYCLOAK_REALM:-helpdesk}/protocol/openid-connect/certs
+      KEYCLOAK_URL: ${KEYCLOAK_INTERNAL_URL:-http://keycloak:8080}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-helpdesk}
+      KEYCLOAK_CLIENT_ID: vehicle-workflow
+      KEYCLOAK_ADMIN_CLIENT_ID: vehicle-workflow-admin
+      KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET:-}
+      MAIL_HOST: ${MAIL_HOST:-smtp.office365.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      HR_MANAGER_EMAIL: ${HR_MANAGER_EMAIL:-}
+      IT_DEPARTMENT_EMAIL: ${IT_DEPARTMENT_EMAIL:-}
+      SHOW_SQL: "false"
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?set CORS_ALLOWED_ORIGINS in .env}
+    networks:
+      - default
+      - keycloak
+    restart: unless-stopped
+
+  fe:
+    image: tadiewa/vehicle-workflow-fe:${IMAGE_TAG:-latest}
+    build:
+      context: ${FRONTEND_DIR:-../../vehicle workflowFE/vehicleworkflow}
+      args:
+        VITE_KEYCLOAK_URL: ${KEYCLOAK_PUBLIC_URL}
+        VITE_KEYCLOAK_REALM: ${KEYCLOAK_REALM:-helpdesk}
+        VITE_KEYCLOAK_CLIENT_ID: vehicle-workflow
+    depends_on:
+      - be
+    environment:
+      API_UPSTREAM: http://be:8095
+    restart: unless-stopped
+
+  vehicle-proxy:
+    image: nginx:1.27-alpine
+    depends_on:
+      - fe
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/certs:/etc/nginx/certs:ro
+    ports:
+      - "${WEB_PORT:-8099}:8099"
+    restart: unless-stopped
+
+networks:
+  keycloak:
+    external: true
+    name: ${KEYCLOAK_NETWORK:-helpdesk_default}
+
+volumes:
+  vehicle_db_data:
