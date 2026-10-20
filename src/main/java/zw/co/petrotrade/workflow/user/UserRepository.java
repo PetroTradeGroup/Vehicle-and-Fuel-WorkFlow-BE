@@ -15,6 +15,12 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     List<User> findByRoleIsNullOrderByIdDesc();
 
-    List<User> findByRoleAndDepartment_Id(Role role, Long departmentId);
+    List<User> findByRoleInAndDepartment_Id(java.util.Collection<Role> roles, Long departmentId);
+
+    List<User> findByRole(Role role);
+
+    List<User> findByRoleInOrderById(java.util.Collection<Role> roles);
+
+    List<User> findByRoleAndStationId(Role role, Long stationId);
 
 }

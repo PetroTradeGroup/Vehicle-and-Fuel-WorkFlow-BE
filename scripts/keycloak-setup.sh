@@ -19,7 +19,7 @@ set -euo pipefail
 CONTAINER=${1:-logbook-keycloak-1}
 REALM=${KEYCLOAK_REALM:-helpdesk}
 FE_ORIGINS=${FE_ORIGINS:-http://localhost:5173}
-ROLES=(STATION_ADMIN DRIVER HOD HR_ADMIN_MANAGER VEHICLE_ADMIN SYSTEM_ADMIN)
+ROLES=(STATION_ADMIN DRIVER HOD REGIONAL_REP RETAIL_MANAGER HR_ADMIN_MANAGER VEHICLE_ADMIN SYSTEM_ADMIN)
 
 # MSYS_NO_PATHCONV stops Git Bash on Windows rewriting /opt/... into a Windows path
 kc() { MSYS_NO_PATHCONV=1 docker exec "$CONTAINER" /opt/keycloak/bin/kcadm.sh "$@"; }

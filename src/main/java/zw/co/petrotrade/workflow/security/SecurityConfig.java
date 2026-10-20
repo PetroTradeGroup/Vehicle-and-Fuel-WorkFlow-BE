@@ -36,8 +36,10 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         String[] anyAppRole = Arrays.stream(Role.values()).map(Role::name).toArray(String[]::new);
-        // everyone except station admins, who only get the station endpoints
-        String[] staffRoles = Arrays.stream(Role.values()).filter(r -> r != Role.STATION_ADMIN).map(Role::name).toArray(String[]::new);
+        // everyone except station admins and regional reps, who only get the station endpoints
+        String[] staffRoles = Arrays.stream(Role.values()).filter(r -> r != Role.STATION_ADMIN && r != Role.REGIONAL_REP).map(Role::name).toArray(String[]::new);
+        // vehicle admins are kept out of stations and their top-ups
+        String[] topUpRoles = Arrays.stream(Role.values()).filter(r -> r != Role.VEHICLE_ADMIN).map(Role::name).toArray(String[]::new);
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(Customizer.withDefaults())
@@ -46,8 +48,12 @@ public class SecurityConfig {
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/actuator/health").permitAll()
                         // reachable without a vehicle role so the frontend can explain "no access"
                         .requestMatchers("/api/users/me").authenticated()
-                        // station admins: their station's page, report and top-ups (scoped further in the controllers)
-                        .requestMatchers("/api/stations/**", "/api/station-top-ups/**").hasAnyRole(anyAppRole)
+                        // everyone with a role has their own notifications
+                        .requestMatchers("/api/notifications/**").hasAnyRole(anyAppRole)
+                        .requestMatchers("/api/station-top-ups/**").hasAnyRole(topUpRoles)
+                        .requestMatchers("/api/reports/top-ups/**").hasAnyRole("HR_ADMIN_MANAGER", "SYSTEM_ADMIN")
+                        // station admins: their station's page and report (scoped further in the controllers)
+                        .requestMatchers("/api/stations/**").hasAnyRole(topUpRoles)
                         // a help desk account with no vehicle role gets nothing else
                         .requestMatchers("/api/**").hasAnyRole(staffRoles)
                         .anyRequest().authenticated())

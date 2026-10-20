@@ -46,6 +46,8 @@ public class ReportExporter {
             new TableExport.Col<>("Fuel approval", 20, TripReport.Row::fuelApprover),
             new TableExport.Col<>("Allocated by", 20, TripReport.Row::allocatedBy),
             new TableExport.Col<>("Returned", 17, TripReport.Row::returnedAt),
+            new TableExport.Col<>("Days late", 9, TripReport.Row::daysLate),
+            new TableExport.Col<>("Delay reason", 30, TripReport.Row::delayReason),
             new TableExport.Col<>("Status", 20, TripReport.Row::status));
 
     public String fileName(TripReport report, String extension) {
@@ -55,7 +57,7 @@ public class ReportExporter {
     public byte[] excel(TripReport report, String generatedBy) {
         TripReport.Totals t = report.totals();
         return TableExport.excel("Trips", "Vehicle trips report", meta(report, generatedBy), COLUMNS, report.rows(),
-                t.trips() + " trips",
+                t.trips() + " trips, " + t.lateReturns() + " late",
                 Map.of("Planned distance (km)", t.distanceKm(),
                         "Distance travelled (km)", t.distanceTravelledKm(),
                         "Fuel issued (L)", t.litresIssued(),
@@ -80,7 +82,7 @@ public class ReportExporter {
         TableExport.header(doc, "Vehicle trips report", meta(report, generatedBy),
                 t.trips() + " trips   ·   " + format(t.distanceKm()) + " km   ·   "
                         + format(t.litresIssued()) + " L issued   ·   " + format(t.fuelUsedLitres()) + " L used   ·   "
-                        + t.vehicles() + " vehicles   ·   " + t.drivers() + " drivers");
+                        + t.vehicles() + " vehicles   ·   " + t.drivers() + " drivers   ·   " + t.lateReturns() + " late");
 
         // fewer, combined columns than Excel so a landscape page stays readable
         String[] heads = {"#", "Dates", "Driver", "Vehicle", "Route", "km", "Fuel", "Issued L", "Used L", "Approved by", "Allocated by", "Returned", "Status"};
@@ -119,7 +121,7 @@ public class ReportExporter {
             table.addCell(cell(approvers(row), body, null, bg, false));
             table.addCell(cell(row.allocatedBy(), body, null, bg, false));
             table.addCell(cell(row.returnedAt() == null ? "—" : STAMP.format(row.returnedAt()), body, null, bg, false));
-            table.addCell(cell(row.status(), body, null, bg, false));
+            table.addCell(cell(row.status(), body, late(row, muted), bg, false));
         }
 
         Font bold = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 7.5f);
@@ -141,6 +143,15 @@ public class ReportExporter {
         }
         doc.close();
         return out.toByteArray();
+    }
+
+    // "3 days late", with what the driver said underneath
+    private static Phrase late(TripReport.Row row, Font muted) {
+        if (row.daysLate() == null) return null;
+        Phrase phrase = new Phrase(row.daysLate() + " day" + (row.daysLate() == 1 ? "" : "s") + " late",
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 6.5f, new Color(0xdc, 0x26, 0x26)));
+        if (row.delayReason() != null) phrase.add(new Phrase("\n" + row.delayReason(), muted));
+        return phrase;
     }
 
     private static String approvers(TripReport.Row row) {

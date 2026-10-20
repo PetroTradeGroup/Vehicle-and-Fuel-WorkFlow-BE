@@ -23,7 +23,8 @@ public class VehicleAllocationController {
         VehicleAllocation allocation = service.allocate(
                 request.requestId(),
                 request.vehicleId(),
-                currentUser.get().getFullName());
+                currentUser.get().getFullName(),
+                request.odometerOutKm());
         return VehicleAllocationResponse.from(allocation);
     }
 
@@ -31,6 +32,6 @@ public class VehicleAllocationController {
     @PreAuthorize("hasRole('VEHICLE_ADMIN')")
     public VehicleAllocationResponse returnVehicle(@Valid @RequestBody VehicleReturnRequest request) {
         return VehicleAllocationResponse.from(service.returnVehicle(
-                request.requestId(), currentUser.get().getFullName(), request.fuelUsedLitres(), request.distanceTravelledKm()));
+                request.requestId(), currentUser.get().getFullName(), request.fuelUsedLitres(), request.odometerInKm()));
     }
 }

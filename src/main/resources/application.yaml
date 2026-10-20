@@ -11,7 +11,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: ${SHOW_SQL:true}
+    #show-sql: ${SHOW_SQL:true}
 
   mail:
     host: ${MAIL_HOST:smtp.gmail.com}
@@ -39,11 +39,29 @@ workflow:
     client-id: ${KEYCLOAK_CLIENT_ID:vehicle-workflow}
     admin-client-id: ${KEYCLOAK_ADMIN_CLIENT_ID:vehicle-workflow-admin}
     admin-client-secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET:}
+  mail:
+    # the mailbox notifications come from; defaults to the SMTP login
+    from: ${MAIL_FROM:${MAIL_USERNAME:}}
+    # Microsoft Graph (Office 365) instead of SMTP: an Entra app with the Mail.Send application permission
+    graph:
+      tenant-id: ${MAIL_GRAPH_TENANT_ID:}
+      client-id: ${MAIL_GRAPH_CLIENT_ID:}
+      client-secret: ${MAIL_GRAPH_CLIENT_SECRET:}
   notifications:
-    hr-manager-email: ${HR_MANAGER_EMAIL:CHANGE_ME@petrotrade.co.zw}
-    it-department-email: ${IT_DEPARTMENT_EMAIL:CHANGE_ME@petrotrade.co.zw}
+    # also copied on the HR & Admin approval emails; blank = only the HR users' own addresses
+    hr-manager-email: ${HR_MANAGER_EMAIL:}
+    it-department-email: ${IT_DEPARTMENT_EMAIL:}
+    # the app's address, so emails link to the page; blank leaves the link out
+    app-url: ${APP_URL:}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000,http://localhost:4200}
+
+# the mail health check logs in to SMTP on every health call; mail goes through Graph and is checked
+# with the Send Test Email button instead
+management:
+  health:
+    mail:
+      enabled: false
 
 server:
   port: ${PORT:8095}

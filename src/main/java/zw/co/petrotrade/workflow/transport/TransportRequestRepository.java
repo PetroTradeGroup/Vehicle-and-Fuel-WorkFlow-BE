@@ -13,6 +13,8 @@ public interface TransportRequestRepository extends JpaRepository<TransportReque
 
     boolean existsByFuelType(FuelType fuelType);
 
+    List<TransportRequest> findByStatusAndRequiredToBeforeOrderByRequiredTo(RequestStatus status, LocalDate date);
+
     // trips whose dates overlap [from, to]
     @Query("select r from TransportRequest r where r.requiredFrom <= :to and r.requiredTo >= :from "
             + "and r.status in :statuses order by r.requiredFrom, r.id")

@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import zw.co.petrotrade.workflow.vehicle.dto.VehicleRequest;
 import zw.co.petrotrade.workflow.vehicle.dto.VehicleResponse;
+import zw.co.petrotrade.workflow.vehicle.dto.VehicleServiceRequest;
 
 import java.util.List;
 
@@ -38,6 +39,12 @@ public class VehicleController {
     @PreAuthorize("hasAnyRole('VEHICLE_ADMIN', 'SYSTEM_ADMIN')")
     public VehicleResponse update(@PathVariable Long id, @Valid @RequestBody VehicleRequest request) {
         return VehicleResponse.from(service.update(id, request));
+    }
+
+    @PostMapping("/{id}/service")
+    @PreAuthorize("hasAnyRole('VEHICLE_ADMIN', 'SYSTEM_ADMIN')")
+    public VehicleResponse recordService(@PathVariable Long id, @Valid @RequestBody VehicleServiceRequest request) {
+        return VehicleResponse.from(service.recordService(id, request));
     }
 
     @DeleteMapping("/{id}")

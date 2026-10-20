@@ -14,6 +14,8 @@ import zw.co.petrotrade.workflow.fuel.FuelTypeService;
 import zw.co.petrotrade.workflow.security.CurrentUser;
 import zw.co.petrotrade.workflow.user.Role;
 import zw.co.petrotrade.workflow.user.User;
+import zw.co.petrotrade.workflow.transport.dto.ExtensionDecisionRequest;
+import zw.co.petrotrade.workflow.transport.dto.ExtensionRequest;
 import zw.co.petrotrade.workflow.transport.dto.RequestAuditResponse;
 import zw.co.petrotrade.workflow.transport.dto.TransportRequestCreateRequest;
 import zw.co.petrotrade.workflow.transport.dto.TransportRequestResponse;
@@ -27,6 +29,7 @@ import java.util.List;
 public class TransportRequestController {
 
     private final TransportRequestService service;
+    private final ReturnDelayService returnDelays;
     private final TransportRequestRepository requestRepository;
     private final ApprovalRepository approvalRepository;
     private final VehicleAllocationRepository vehicleAllocationRepository;
@@ -55,7 +58,7 @@ public class TransportRequestController {
         probe.setDriverId(driverId);
         if (!seesAll()) {
             User me = currentUser.get();
-            if (currentUser.has(Role.HOD) && me.getDepartment() != null) {
+            if (currentUser.has(Role.HOD, Role.RETAIL_MANAGER) && me.getDepartment() != null) {
                 probe.setDepartmentId(me.getDepartment().getId());
             } else {
                 probe.setDriverId(me.getId());
@@ -69,6 +72,22 @@ public class TransportRequestController {
     @PreAuthorize("hasRole('VEHICLE_ADMIN')")
     public TransportRequestResponse calculateFuel(@PathVariable Long id) {
         return TransportRequestResponse.from(service.calculateFuel(id));
+    }
+
+    // the driver (or a vehicle admin for them) asks to keep the vehicle longer, or explains why it's late
+    @PostMapping("/{id}/extension")
+    public TransportRequestResponse requestExtension(@PathVariable Long id, @Valid @RequestBody ExtensionRequest body) {
+        TransportRequest request = requestRepository.findById(id).orElseThrow();
+        if (request.getDriverId() == null || !request.getDriverId().equals(currentUser.get().getId())) {
+            currentUser.require(Role.VEHICLE_ADMIN, Role.SYSTEM_ADMIN);
+        }
+        return TransportRequestResponse.from(returnDelays.requestExtension(id, body.returnDate(), body.reason()));
+    }
+
+    @PostMapping("/{id}/extension/decision")
+    @PreAuthorize("hasRole('VEHICLE_ADMIN')")
+    public TransportRequestResponse decideExtension(@PathVariable Long id, @Valid @RequestBody ExtensionDecisionRequest body) {
+        return TransportRequestResponse.from(returnDelays.decideExtension(id, body.approved(), currentUser.get().getFullName(), body.comments()));
     }
 
     @GetMapping("/{id}/audit")
@@ -93,9 +112,9 @@ public class TransportRequestController {
         if (seesAll()) return;
         User me = currentUser.get();
         if (request.getDriverId() != null && request.getDriverId().equals(me.getId())) return;
-        if (currentUser.has(Role.HOD) && me.getDepartment() != null
+        if (currentUser.has(Role.HOD, Role.RETAIL_MANAGER) && me.getDepartment() != null
                 && me.getDepartment().getId().equals(request.getDepartmentId())) return;
-        throw new AccessDeniedException(currentUser.has(Role.HOD)
+        throw new AccessDeniedException(currentUser.has(Role.HOD, Role.RETAIL_MANAGER)
                 ? "You can only see requests from your own department."
                 : "You can only see your own requests.");
     }

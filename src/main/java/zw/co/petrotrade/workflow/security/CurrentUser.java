@@ -44,6 +44,8 @@ public class CurrentUser {
                 case STATION_ADMIN -> "station admin";
                 case DRIVER -> "driver";
                 case HOD -> "head of department";
+                case REGIONAL_REP -> "regional representative";
+                case RETAIL_MANAGER -> "retail manager";
                 case HR_ADMIN_MANAGER -> "HR & Admin manager";
                 case VEHICLE_ADMIN -> "vehicle admin";
                 case SYSTEM_ADMIN -> "system admin";
@@ -55,7 +57,7 @@ public class CurrentUser {
     // A station admin without an oversight role is limited to their own station.
     // Returns that station's id, or null for people who may see every station.
     public Long stationScope() {
-        if (!has(Role.STATION_ADMIN) || has(Role.HR_ADMIN_MANAGER, Role.VEHICLE_ADMIN, Role.SYSTEM_ADMIN)) {
+        if (!has(Role.STATION_ADMIN) || has(Role.HR_ADMIN_MANAGER, Role.SYSTEM_ADMIN)) {
             return null;
         }
         Long stationId = get().getStationId();
@@ -65,14 +67,14 @@ public class CurrentUser {
         return stationId;
     }
 
-    // Station pages and reports: oversight roles see any station, a station admin only their own
+    // Station pages and reports: HR and system admins see any station, a station admin only their own; vehicle admins none
     public void requireStation(Long stationId) {
         Long own = stationScope();
         if (own != null) {
             if (!own.equals(stationId)) {
                 throw new AccessDeniedException("You can only see your own station.");
             }
-        } else if (!has(Role.HR_ADMIN_MANAGER, Role.VEHICLE_ADMIN, Role.SYSTEM_ADMIN)) {
+        } else if (!has(Role.HR_ADMIN_MANAGER, Role.SYSTEM_ADMIN)) {
             throw new AccessDeniedException("You don't have permission to see station reports.");
         }
     }

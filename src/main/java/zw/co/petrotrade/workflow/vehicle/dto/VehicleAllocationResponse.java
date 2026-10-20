@@ -13,7 +13,9 @@ public record VehicleAllocationResponse(
         String returnedBy,
         LocalDateTime returnDate,
         Double fuelUsedLitres,
-        Double distanceTravelledKm) {
+        Double distanceTravelledKm,
+        Double odometerOutKm,
+        Double odometerInKm) {
 
     public static VehicleAllocationResponse from(VehicleAllocation allocation) {
         return new VehicleAllocationResponse(
@@ -25,6 +27,8 @@ public record VehicleAllocationResponse(
                 allocation.getReturnedBy(),
                 allocation.getReturnDate(),
                 allocation.getFuelUsedLitres(),
-                allocation.getDistanceTravelledKm());
+                allocation.getDistanceTravelledKm(),
+                allocation.getOdometerOutKm(),
+                allocation.getOdometerInKm());
     }
 }

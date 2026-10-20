@@ -29,7 +29,8 @@ import java.util.stream.Collectors;
 public class StationReportService {
 
     private static final Map<TopUpStatus, String> STATUS_LABEL = Map.of(
-            TopUpStatus.PENDING_APPROVAL, "Pending approval",
+            TopUpStatus.PENDING_FIRST_APPROVAL, "Awaiting regional rep / retail manager",
+            TopUpStatus.PENDING_APPROVAL, "Awaiting HR & Admin",
             TopUpStatus.COMPLETED, "Approved",
             TopUpStatus.REJECTED, "Rejected");
 
@@ -46,7 +47,7 @@ public class StationReportService {
                 card == null ? null : card.getCardNumber(),
                 card == null ? null : card.getBalanceLitres(),
                 card == null ? null : card.getActive(),
-                topUps.countByStationIdAndStatus(stationId, TopUpStatus.PENDING_APPROVAL));
+                topUps.countByStationIdAndStatusIn(stationId, List.of(TopUpStatus.PENDING_FIRST_APPROVAL, TopUpStatus.PENDING_APPROVAL)));
     }
 
     public StationReport report(Long stationId, LocalDate from, LocalDate to) {
@@ -100,7 +101,7 @@ public class StationReportService {
                 list.stream().mapToDouble(t -> t.getLitres() == null ? 0 : t.getLitres()).sum(),
                 list.stream().filter(t -> t.getStatus() == TopUpStatus.COMPLETED)
                         .mapToDouble(t -> t.getLitres() == null ? 0 : t.getLitres()).sum(),
-                list.stream().filter(t -> t.getStatus() == TopUpStatus.PENDING_APPROVAL).count(),
+                list.stream().filter(t -> t.getStatus().pending()).count(),
                 list.stream().filter(t -> t.getStatus() == TopUpStatus.REJECTED).count());
     }
 

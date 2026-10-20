@@ -5,7 +5,9 @@ import org.springframework.stereotype.Service;
 import zw.co.petrotrade.workflow.fuel.CardHolderType;
 import zw.co.petrotrade.workflow.fuel.FuelCardRepository;
 import zw.co.petrotrade.workflow.vehicle.dto.VehicleRequest;
+import zw.co.petrotrade.workflow.vehicle.dto.VehicleServiceRequest;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -47,6 +49,25 @@ public class VehicleServiceImp implements VehicleService {
         return repository.save(vehicle);
     }
 
+    // starts a new service interval from this reading
+    public Vehicle recordService(Long id, VehicleServiceRequest request) {
+        Vehicle vehicle = findById(id);
+        Double reading = request.odometerKm() != null ? request.odometerKm() : vehicle.getOdometerKm();
+        if (reading == null) {
+            throw new IllegalArgumentException("Vehicle " + vehicle.getRegistrationNumber()
+                    + " has no odometer reading yet. Enter the reading at the service.");
+        }
+        if (vehicle.getOdometerKm() != null && reading < vehicle.getOdometerKm()) {
+            throw new IllegalArgumentException(String.format(
+                    "The odometer can't read less than %.0f km, the last reading for %s.",
+                    vehicle.getOdometerKm(), vehicle.getRegistrationNumber()));
+        }
+        vehicle.setOdometerKm(reading);
+        vehicle.setLastServiceOdometerKm(reading);
+        vehicle.setLastServiceDate(request.serviceDate() != null ? request.serviceDate() : LocalDate.now());
+        return repository.save(vehicle);
+    }
+
     public void delete(Long id) {
         Vehicle vehicle = findById(id);
         if (vehicle.getStatus() == VehicleStatus.ALLOCATED) {
@@ -67,6 +88,15 @@ public class VehicleServiceImp implements VehicleService {
         vehicle.setRegistrationNumber(request.registrationNumber());
         vehicle.setMake(request.make());
         vehicle.setModel(request.model());
+        if (request.odometerKm() != null) {
+            vehicle.setOdometerKm(request.odometerKm());
+        }
+        if (request.lastServiceOdometerKm() != null) {
+            if (vehicle.getOdometerKm() != null && request.lastServiceOdometerKm() > vehicle.getOdometerKm()) {
+                throw new IllegalArgumentException("The last service reading can't be more than the current odometer.");
+            }
+            vehicle.setLastServiceOdometerKm(request.lastServiceOdometerKm());
+        }
         if (request.status() != null) {
             vehicle.setStatus(request.status());
         }

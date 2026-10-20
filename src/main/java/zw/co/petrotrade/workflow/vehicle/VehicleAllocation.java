@@ -30,4 +30,9 @@ public class VehicleAllocation {
     private Double fuelUsedLitres;
 
     private Double distanceTravelledKm;
+
+    // odometer (km) when the vehicle went out and when it came back; travelled = in - out
+    private Double odometerOutKm;
+
+    private Double odometerInKm;
 }

@@ -80,7 +80,7 @@ public class UserService {
     // one, and each department has only one head
     private Department checkDepartment(Role role, Long departmentId, User user) {
         if (departmentId == null) {
-            if (role == Role.HOD) {
+            if (role != null && role.headsDepartment()) {
                 throw new IllegalArgumentException("Choose the department this head of department runs.");
             }
             return null;
@@ -91,8 +91,8 @@ public class UserService {
         if (!department.isActive() && !alreadyIn) {
             throw new IllegalArgumentException(department.getName() + " is switched off. Pick another department, or switch it back on on the Departments page.");
         }
-        if (role == Role.HOD) {
-            repository.findByRoleAndDepartment_Id(Role.HOD, departmentId).stream()
+        if (role != null && role.headsDepartment()) {
+            repository.findByRoleInAndDepartment_Id(Role.DEPARTMENT_HEADS, departmentId).stream()
                     .filter(head -> user == null || !head.getId().equals(user.getId()))
                     .findFirst()
                     .ifPresent(head -> {

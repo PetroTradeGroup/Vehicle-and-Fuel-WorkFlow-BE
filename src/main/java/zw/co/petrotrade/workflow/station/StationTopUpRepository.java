@@ -9,7 +9,7 @@ public interface StationTopUpRepository extends JpaRepository<StationTopUp, Long
 
     List<StationTopUp> findByStationIdOrderByIdDesc(Long stationId);
 
-    long countByStationIdAndStatus(Long stationId, TopUpStatus status);
+    long countByStationIdAndStatusIn(Long stationId, java.util.Collection<TopUpStatus> statuses);
 
     // requested within [from, to), any station
     List<StationTopUp> findByRequestedAtGreaterThanEqualAndRequestedAtLessThanOrderByRequestedAtAsc(

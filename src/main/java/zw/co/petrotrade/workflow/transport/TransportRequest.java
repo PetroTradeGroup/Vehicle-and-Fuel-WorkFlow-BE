@@ -37,4 +37,8 @@ public class TransportRequest {
     private String notes;
     @Enumerated(EnumType.STRING)
     private RequestStatus status;
+    // the driver asked to keep the vehicle until this date; cleared once a vehicle admin decides
+    private LocalDate extensionRequestedTo;
+    // the driver's latest word on a delay: why they need the extension, or why the vehicle is late
+    private String delayReason;
 }

@@ -7,6 +7,7 @@ import zw.co.petrotrade.workflow.approval.Approval;
 import zw.co.petrotrade.workflow.approval.ApprovalLevel;
 import zw.co.petrotrade.workflow.approval.ApprovalRepository;
 import zw.co.petrotrade.workflow.approval.ApprovalSubject;
+import zw.co.petrotrade.workflow.notification.NotificationService;
 import zw.co.petrotrade.workflow.transport.RequestStatus;
 import zw.co.petrotrade.workflow.transport.TransportRequest;
 import zw.co.petrotrade.workflow.transport.TransportRequestRepository;
@@ -18,6 +19,7 @@ import zw.co.petrotrade.workflow.vehicle.VehicleStatus;
 
 import java.time.LocalDateTime;
 
+// HR & Admin's one decision on a trip, made last: approving signs off the trip and loads its fuel
 @Service
 @RequiredArgsConstructor
 public class FuelApprovalService {
@@ -28,6 +30,7 @@ public class FuelApprovalService {
     private final VehicleAllocationRepository vehicleAllocationRepository;
     private final FuelCardService fuelCardService;
     private final VehicleRepository vehicleRepository;
+    private final NotificationService notifications;
 
     @Transactional
     public Approval decide(
@@ -40,7 +43,7 @@ public class FuelApprovalService {
         TransportRequest request = requestRepository.findById(requestId).orElseThrow();
 
         if (request.getStatus() != RequestStatus.FUEL_CALCULATED) {
-            throw new IllegalStateException("This request isn't waiting for fuel approval. "
+            throw new IllegalStateException("This request isn't waiting for HR & Admin approval. "
                     + request.getStatus().alreadyMovedOn());
         }
 
@@ -65,18 +68,24 @@ public class FuelApprovalService {
             // the trip is still ahead; the vehicle is released when it is returned
             request.setStatus(RequestStatus.FUEL_APPROVED);
         } else {
-            request.setStatus(RequestStatus.FUEL_REJECTED);
+            request.setStatus(RequestStatus.REJECTED_HR_ADMIN);
 
-            // no fuel means no trip, so the vehicle is free for the next request
+            // a rejected trip never leaves, so the vehicle is free for the next request
             Vehicle vehicle = vehicleRepository.findById(allocation.getVehicleId()).orElseThrow();
             vehicle.setStatus(VehicleStatus.AVAILABLE);
             vehicleRepository.save(vehicle);
         }
 
         requestRepository.save(request);
+        notifications.notifyUser(request.getDriverId(), "Request #" + requestId + (approved ? " approved: you can go" : " rejected by HR & Admin"),
+                approved
+                        ? "HR & Admin approved your trip to " + request.getDestination() + ". " + request.getFuelRequiredLitres() + " litres of fuel were loaded.\n"
+                        : "HR & Admin rejected your trip to " + request.getDestination() + ".\n"
+                                + (comments == null || comments.isBlank() ? "" : "Comment from " + approver + ": " + comments.trim() + "\n"),
+                NotificationService.requestLink(requestId));
 
         return approvalRepository.save(Approval.record(
-                ApprovalSubject.TRANSPORT_REQUEST, requestId, ApprovalLevel.FUEL, approved, approver, comments));
+                ApprovalSubject.TRANSPORT_REQUEST, requestId, ApprovalLevel.HR_ADMIN, approved, approver, comments));
     }
 
     private FuelCard resolveCard(TransportRequest request, VehicleAllocation allocation, boolean usePersonalCard) {

@@ -11,6 +11,8 @@ import zw.co.petrotrade.workflow.fuel.dto.FuelApprovalRequest;
 import zw.co.petrotrade.workflow.fuel.dto.FuelCardRequest;
 import zw.co.petrotrade.workflow.fuel.dto.FuelCardResponse;
 import zw.co.petrotrade.workflow.security.CurrentUser;
+import zw.co.petrotrade.workflow.user.Role;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.util.List;
 
@@ -33,12 +35,24 @@ public class FuelCardController {
 
     @GetMapping
     public List<FuelCardResponse> list() {
-        return repository.findAll().stream().map(FuelCardResponse::from).toList();
+        boolean stations = seesStations();
+        return repository.findAll().stream()
+                .filter(c -> stations || c.getHolderType() != CardHolderType.STATION)
+                .map(FuelCardResponse::from).toList();
     }
 
     @GetMapping("/{id}")
     public FuelCardResponse get(@PathVariable Long id) {
-        return FuelCardResponse.from(repository.findById(id).orElseThrow());
+        FuelCard card = repository.findById(id).orElseThrow();
+        if (card.getHolderType() == CardHolderType.STATION && !seesStations()) {
+            throw new AccessDeniedException("You don't have permission to see station cards.");
+        }
+        return FuelCardResponse.from(card);
+    }
+
+    // vehicle admins see nothing about stations, unless they also oversee them
+    private boolean seesStations() {
+        return !currentUser.has(Role.VEHICLE_ADMIN) || currentUser.has(Role.HR_ADMIN_MANAGER, Role.SYSTEM_ADMIN);
     }
 
     @PostMapping("/approve-fuel")

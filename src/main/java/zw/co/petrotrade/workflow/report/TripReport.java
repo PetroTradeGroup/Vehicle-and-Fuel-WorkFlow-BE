@@ -12,7 +12,15 @@ public record TripReport(
         LocalDate to,
         String filterSummary,
         List<Row> rows,
-        Totals totals) {
+        Totals totals,
+        // drivers who used the most fuel, and the vehicles that went out most, over the same rows
+        List<Leader> topFuelUsers,
+        List<Leader> mostUsedVehicles) {
+
+    // km is what was recorded on return, else the planned distance
+    public record Leader(String name, String detail, long trips, double distanceKm, double fuelUsedLitres,
+                         double litresIssued) {
+    }
 
     // query parameters shared by the JSON, Excel and PDF endpoints
     public record Filter(
@@ -21,7 +29,9 @@ public record TripReport(
             Long vehicleId,
             Long driverId,
             Long fuelTypeId,
-            String approver) {
+            String approver,
+            // only trips that came back after their return date, or are still out past it
+            Boolean lateOnly) {
     }
 
     public record Row(
@@ -46,10 +56,14 @@ public record TripReport(
             String fuelApprover,
             String allocatedBy,
             LocalDateTime returnedAt,
-            String status) {
+            String status,
+            // days past the return date it came back, or has been out so far; null when on time
+            Long daysLate,
+            // what the driver said about the delay
+            String delayReason) {
     }
 
     public record Totals(int trips, double distanceKm, double distanceTravelledKm, double litresIssued,
-                         double fuelUsedLitres, long vehicles, long drivers) {
+                         double fuelUsedLitres, long vehicles, long drivers, long lateReturns) {
     }
 }

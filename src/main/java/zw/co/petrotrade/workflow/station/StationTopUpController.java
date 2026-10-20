@@ -1,7 +1,7 @@
 package zw.co.petrotrade.workflow.station;
 
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.access.prepost.PreAuthorize;
+import zw.co.petrotrade.workflow.user.Role;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -52,10 +52,16 @@ public class StationTopUpController {
     }
 
     @PostMapping("/{id}/decision")
-    @PreAuthorize("hasRole('HR_ADMIN_MANAGER')")
     public StationTopUpResponse decide(@PathVariable Long id, @Valid @RequestBody TopUpDecisionRequest request) {
+        // a regional rep or the retail manager first, then HR & Admin
+        TopUpStatus stage = service.findById(id).getStatus();
+        if (stage == TopUpStatus.PENDING_FIRST_APPROVAL) {
+            currentUser.require(Role.REGIONAL_REP, Role.RETAIL_MANAGER);
+        } else {
+            currentUser.require(Role.HR_ADMIN_MANAGER);
+        }
         return StationTopUpResponse.from(
-                service.decide(id, request.approved(), currentUser.get().getFullName(), request.comments()));
+                service.decide(id, stage, request.approved(), currentUser.get().getFullName(), request.comments()));
     }
 
     private StationTopUp visible(Long id) {

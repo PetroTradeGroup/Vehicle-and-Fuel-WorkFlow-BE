@@ -7,7 +7,7 @@ import zw.co.petrotrade.workflow.approval.ApprovalLevel;
 import zw.co.petrotrade.workflow.approval.ApprovalRepository;
 import zw.co.petrotrade.workflow.approval.ApprovalSubject;
 import zw.co.petrotrade.workflow.fuel.FuelCalculationService;
-import zw.co.petrotrade.workflow.fuel.NotificationService;
+import zw.co.petrotrade.workflow.notification.NotificationService;
 import zw.co.petrotrade.workflow.user.Role;
 import zw.co.petrotrade.workflow.user.User;
 import zw.co.petrotrade.workflow.user.UserRepository;
@@ -35,24 +35,33 @@ public class TransportRequestService {
         String skipReason = hodSkipReason(driver);
         request.setStatus(skipReason == null ? RequestStatus.PENDING_HOD : RequestStatus.APPROVED_HOD);
         TransportRequest saved = repository.save(request);
+        String trip = saved.getDriverName() + ": " + saved.getStartingPoint() + " to " + saved.getDestination()
+                + ", " + saved.getRequiredFrom() + (saved.getRequiredTo() == null || saved.getRequiredTo().equals(saved.getRequiredFrom()) ? "" : " to " + saved.getRequiredTo()) + ".\n";
         if (skipReason != null) {
             approvalRepository.save(Approval.record(ApprovalSubject.TRANSPORT_REQUEST, saved.getId(), ApprovalLevel.HOD,
                     true, "Automatic", skipReason));
+            notificationService.notifyVehicleAdmins("Vehicle needed - Request #" + saved.getId(),
+                    trip + skipReason + "\nAllocate a vehicle.\n", NotificationService.requestLink(saved.getId()));
+        } else {
+            notificationService.notifyDepartmentHeads(saved.getDepartmentId(), "Approval needed - Request #" + saved.getId(),
+                    "A transport request from " + saved.getDepartment() + " is waiting for your approval.\n" + trip
+                            + "Purpose: " + saved.getPurpose() + "\n",
+                    NotificationService.requestLink(saved.getId()));
         }
         return saved;
     }
 
-    // The department head step is skipped when nobody else could approve it; HR & Admin still approve every request
+    // The department head step is skipped when nobody else could approve it; HR & Admin still approve every request at the end
     private String hodSkipReason(User driver) {
         if (driver.getDepartment() == null) {
-            return driver.getFullName() + " has no department, so this went straight to HR & Admin.";
+            return driver.getFullName() + " has no department, so this went straight to vehicle allocation.";
         }
         String department = driver.getDepartment().getName();
-        if (driver.getRole() == Role.HOD) {
-            return "Requested by the head of " + department + ", so this went straight to HR & Admin.";
+        if (driver.getRole() != null && driver.getRole().headsDepartment()) {
+            return "Requested by the head of " + department + ", so this went straight to vehicle allocation.";
         }
-        if (userRepository.findByRoleAndDepartment_Id(Role.HOD, driver.getDepartment().getId()).isEmpty()) {
-            return department + " has no head of department, so this went straight to HR & Admin.";
+        if (userRepository.findByRoleInAndDepartment_Id(Role.DEPARTMENT_HEADS, driver.getDepartment().getId()).isEmpty()) {
+            return department + " has no head of department, so this went straight to vehicle allocation.";
         }
         return null;
     }

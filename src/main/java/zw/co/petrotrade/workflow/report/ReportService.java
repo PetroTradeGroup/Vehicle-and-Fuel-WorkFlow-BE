@@ -11,6 +11,7 @@ import zw.co.petrotrade.workflow.fuel.FuelTransaction;
 import zw.co.petrotrade.workflow.fuel.FuelTransactionRepository;
 import zw.co.petrotrade.workflow.fuel.FuelTypeRepository;
 import zw.co.petrotrade.workflow.transport.RequestStatus;
+import zw.co.petrotrade.workflow.transport.ReturnDelayService;
 import zw.co.petrotrade.workflow.transport.TransportRequest;
 import zw.co.petrotrade.workflow.transport.TransportRequestRepository;
 import zw.co.petrotrade.workflow.user.UserRepository;
@@ -19,8 +20,11 @@ import zw.co.petrotrade.workflow.vehicle.VehicleAllocation;
 import zw.co.petrotrade.workflow.vehicle.VehicleAllocationRepository;
 import zw.co.petrotrade.workflow.vehicle.VehicleRepository;
 
+import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -38,7 +42,7 @@ public class ReportService {
 
     private static final Map<RequestStatus, String> STATUS_LABEL = Map.of(
             RequestStatus.VEHICLE_ALLOCATED, "Vehicle allocated",
-            RequestStatus.FUEL_CALCULATED, "Awaiting fuel approval",
+            RequestStatus.FUEL_CALCULATED, "Awaiting HR & Admin approval",
             RequestStatus.FUEL_APPROVED, "On trip",
             RequestStatus.COMPLETED, "Completed");
 
@@ -78,6 +82,7 @@ public class ReportService {
 
         // ponytail: filters run in memory over the period's trips; move them into the query if periods get huge
         List<TripReport.Row> rows = new ArrayList<>();
+        LocalDate today = LocalDate.now(ReturnDelayService.ZONE);
         for (TransportRequest trip : trips) {
             VehicleAllocation allocation = allocationByRequest.get(trip.getId());
             Vehicle vehicle = allocation == null ? null : vehicleById.get(allocation.getVehicleId());
@@ -88,6 +93,8 @@ public class ReportService {
             if (filter.fuelTypeId() != null && (trip.getFuelType() == null || !filter.fuelTypeId().equals(trip.getFuelType().getId()))) continue;
             if (filter.approver() != null && !filter.approver().isBlank() && decisions.stream()
                     .noneMatch(a -> filter.approver().trim().equalsIgnoreCase(a.getApprover()))) continue;
+            Long daysLate = daysLate(trip, allocation, today);
+            if (Boolean.TRUE.equals(filter.lateOnly()) && daysLate == null) continue;
 
             rows.add(new TripReport.Row(
                     trip.getId(),
@@ -108,7 +115,9 @@ public class ReportService {
                     approver(decisions, ApprovalLevel.FUEL),
                     allocation == null ? null : allocation.getAllocatedBy(),
                     allocation == null ? null : allocation.getReturnDate(),
-                    STATUS_LABEL.get(trip.getStatus())));
+                    STATUS_LABEL.get(trip.getStatus()),
+                    daysLate,
+                    trip.getDelayReason()));
         }
 
         TripReport.Totals totals = new TripReport.Totals(
@@ -118,9 +127,56 @@ public class ReportService {
                 sum(rows, TripReport.Row::litresIssued),
                 sum(rows, TripReport.Row::fuelUsedLitres),
                 rows.stream().map(TripReport.Row::vehicle).filter(Objects::nonNull).distinct().count(),
-                rows.stream().map(TripReport.Row::driver).filter(Objects::nonNull).distinct().count());
+                rows.stream().map(TripReport.Row::driver).filter(Objects::nonNull).distinct().count(),
+                rows.stream().filter(r -> r.daysLate() != null).count());
 
-        return new TripReport(filter.from(), filter.to(), describe(filter), rows, totals);
+        return new TripReport(filter.from(), filter.to(), describe(filter), rows, totals,
+                leaders(rows, TripReport.Row::driver, TripReport.Row::department,
+                        Comparator.comparingDouble(TripReport.Leader::fuelUsedLitres)
+                                .thenComparingDouble(TripReport.Leader::litresIssued)),
+                UsageReport.By.VEHICLE.rank(rows).stream().limit(LEADERS).toList());
+    }
+
+    // same period and filters as the trip report, ranked in full
+    public UsageReport usage(TripReport.Filter filter, UsageReport.By by) {
+        TripReport report = trips(filter);
+        return new UsageReport(report.from(), report.to(), report.filterSummary(), by, by.rank(report.rows()));
+    }
+
+    static final int LEADERS = 5;
+
+    // the top LEADERS of rank()
+    static List<TripReport.Leader> leaders(List<TripReport.Row> rows, Function<TripReport.Row, String> key,
+                                           Function<TripReport.Row, String> detail, Comparator<TripReport.Leader> order) {
+        return rank(rows, key, detail, order).stream().limit(LEADERS).toList();
+    }
+
+    // groups the rows by key, highest first by the given order
+    static List<TripReport.Leader> rank(List<TripReport.Row> rows, Function<TripReport.Row, String> key,
+                                        Function<TripReport.Row, String> detail, Comparator<TripReport.Leader> order) {
+        return rows.stream()
+                .filter(r -> key.apply(r) != null)
+                .collect(Collectors.groupingBy(key, LinkedHashMap::new, Collectors.toList()))
+                .entrySet().stream()
+                .map(e -> new TripReport.Leader(
+                        e.getKey(),
+                        detail.apply(e.getValue().get(0)),
+                        e.getValue().size(),
+                        e.getValue().stream().mapToDouble(r -> r.distanceTravelledKm() != null ? r.distanceTravelledKm()
+                                : r.distanceKm() == null ? 0 : r.distanceKm()).sum(),
+                        sum(e.getValue(), TripReport.Row::fuelUsedLitres),
+                        sum(e.getValue(), TripReport.Row::litresIssued)))
+                .sorted(order.reversed())
+                .toList();
+    }
+
+    // days past the (possibly extended) return date: when it came back, or today while it's still out; null when on time
+    static Long daysLate(TransportRequest trip, VehicleAllocation allocation, LocalDate today) {
+        if (trip.getRequiredTo() == null) return null;
+        LocalDate back = allocation != null && allocation.getReturnDate() != null ? allocation.getReturnDate().toLocalDate()
+                : trip.getStatus() == RequestStatus.FUEL_APPROVED ? today : null;
+        long days = back == null ? 0 : ChronoUnit.DAYS.between(trip.getRequiredTo(), back);
+        return days > 0 ? days : null;
     }
 
     private static double sum(List<TripReport.Row> rows, Function<TripReport.Row, Double> field) {
@@ -148,6 +204,9 @@ public class ReportService {
         }
         if (filter.approver() != null && !filter.approver().isBlank()) {
             parts.add("Approver: " + filter.approver().trim());
+        }
+        if (Boolean.TRUE.equals(filter.lateOnly())) {
+            parts.add("Late returns only");
         }
         return parts.isEmpty() ? "All trips" : String.join(" · ", parts);
     }

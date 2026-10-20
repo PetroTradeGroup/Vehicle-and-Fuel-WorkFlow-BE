@@ -29,7 +29,7 @@ public class DepartmentController {
             List<User> members = people.stream()
                     .filter(u -> u.getDepartment() != null && u.getDepartment().getId().equals(d.getId()))
                     .toList();
-            User head = members.stream().filter(u -> u.getRole() == Role.HOD).findFirst().orElse(null);
+            User head = members.stream().filter(u -> u.getRole() != null && u.getRole().headsDepartment()).findFirst().orElse(null);
             return new DepartmentResponse(d.getId(), d.getName(), d.isActive(),
                     head == null ? null : head.getId(), head == null ? null : head.getFullName(), members.size());
         }).toList();

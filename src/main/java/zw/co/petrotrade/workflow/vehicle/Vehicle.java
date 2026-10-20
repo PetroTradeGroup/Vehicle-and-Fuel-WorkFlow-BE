@@ -10,6 +10,8 @@ import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import lombok.Data;
 
+import java.time.LocalDate;
+
 @Data
 @Entity
 @Table(name = "vehicles")
@@ -27,6 +29,14 @@ public class Vehicle {
 
     @Enumerated(EnumType.STRING)
     private VehicleStatus status;
+
+    // last known odometer reading (km): set when the vehicle is added, then rolled forward on each return
+    private Double odometerKm;
+
+    // odometer and date at the last service; the next one is due ServiceStatus.INTERVAL_KM later
+    private Double lastServiceOdometerKm;
+
+    private LocalDate lastServiceDate;
 
     // two concurrent allocations of the same vehicle: the second save fails instead of double-booking
     @Version
