@@ -27,7 +27,13 @@ public class TransportRequest {
     private String destination;
     private String startingPoint;
     private Double distanceKm;
+    // litres to load; the vehicle admin can lower it (to 0) when the tank already has fuel
     private Double fuelRequiredLitres;
+    // what the distance works out to, set when the fuel is calculated
+    private Double fuelSuggestedLitres;
+    // the vehicle admin's explanation when they load more than calculated
+    @Column(length = 1000)
+    private String fuelOverReason;
     @ManyToOne
     private FuelType fuelType;
     private String requestedVehicleReg;

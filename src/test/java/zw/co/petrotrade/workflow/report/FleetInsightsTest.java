@@ -111,8 +111,8 @@ class FleetInsightsTest {
 
     private static TripReport.Row row(String driver, String department, String vehicle, Double plannedKm, Double actualKm,
                                       Double fuelUsed) {
-        return new TripReport.Row(1L, null, null, driver, department, vehicle, "Toyota Hilux", "A → B",
-                plannedKm, actualKm, null, null, fuelUsed, null, null, null, null, null, "Completed", null, null);
+        return new TripReport.Row(1L, null, null, driver, department, vehicle, "Toyota Hilux", "A → B", "Local",
+                plannedKm, actualKm, null, null, null, fuelUsed, null, null, null, null, null, "Completed", null, null);
     }
 
     @Test

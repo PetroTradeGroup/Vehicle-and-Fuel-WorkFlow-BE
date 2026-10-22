@@ -50,7 +50,12 @@ public class NotificationService {
                         + "Department: " + request.getDepartment() + "\n"
                         + "Destination: " + request.getDestination() + "\n"
                         + "Trip type: " + TripType.of(request.getDistanceKm()) + " (" + request.getDistanceKm() + " km)\n"
-                        + "Fuel required: " + request.getFuelRequiredLitres() + " litres\n",
+                        + (request.getFuelRequiredLitres() == null || request.getFuelRequiredLitres() <= 0
+                                ? "Fuel: none needed, the vehicle admin says the tank has enough\n"
+                                : "Fuel required: " + request.getFuelRequiredLitres() + " litres"
+                                        + (request.getFuelRequiredLitres().equals(request.getFuelSuggestedLitres()) ? "" : " (" + request.getFuelSuggestedLitres() + " calculated)")
+                                        + "\n"
+                                        + (request.getFuelOverReason() == null ? "" : "Why the extra fuel: " + request.getFuelOverReason() + "\n")),
                 requestLink(request.getId()),
                 List.of(hrManagerEmail, itDepartmentEmail));
     }

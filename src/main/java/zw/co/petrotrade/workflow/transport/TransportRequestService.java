@@ -66,7 +66,9 @@ public class TransportRequestService {
         return null;
     }
 
-    public TransportRequest calculateFuel(Long requestId) {
+    // Local trips: litres is the vehicle admin's call after checking the tank and card (0 = it has enough), with a
+    // reason when it's more than calculated. External trips always load the calculated amount. null loads the calculated amount.
+    public TransportRequest calculateFuel(Long requestId, Double litres, String reason) {
 
         TransportRequest request = repository.findById(requestId).orElseThrow();
 
@@ -75,8 +77,21 @@ public class TransportRequestService {
                     + request.getStatus().alreadyMovedOn());
         }
 
-        request.setFuelRequiredLitres(
-                fuelCalculationService.calculateFuel(request.getDistanceKm()));
+        Double suggested = fuelCalculationService.calculateFuel(request.getDistanceKm());
+        double load = litres == null ? suggested : litres;
+        // a tenth of a litre either way is rounding, not a change
+        if (TripType.of(request.getDistanceKm()) == TripType.EXTERNAL && Math.abs(load - suggested) > 0.05) {
+            throw new IllegalArgumentException(String.format(
+                    "External trips load the calculated fuel (%.1f L). Only local trips can be changed.", suggested));
+        }
+        boolean over = load > suggested + 0.05;
+        if (over && (reason == null || reason.isBlank())) {
+            throw new IllegalArgumentException(String.format(
+                    "%.1f L is more than the %.1f L calculated. Explain why the extra fuel is needed.", load, suggested));
+        }
+        request.setFuelSuggestedLitres(suggested);
+        request.setFuelRequiredLitres(load);
+        request.setFuelOverReason(over ? reason.trim() : null);
         request.setStatus(RequestStatus.FUEL_CALCULATED);
 
         repository.save(request);

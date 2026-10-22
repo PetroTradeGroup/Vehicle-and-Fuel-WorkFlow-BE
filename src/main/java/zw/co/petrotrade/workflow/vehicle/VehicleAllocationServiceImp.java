@@ -95,20 +95,22 @@ public class VehicleAllocationServiceImp implements VehicleAllocationService {
                     "The odometer can't read less than when the vehicle went out (%.0f km). Check the reading.", odometerOut));
         }
 
-        // the fuel drawn on the trip comes off the card it was loaded onto
-        FuelTransaction transaction = fuelTransactionRepository.findFirstByRequestIdOrderByIdDesc(requestId)
-                .orElseThrow(() -> new IllegalStateException("No fuel was issued for this trip, so there's nothing to record usage against."));
-        FuelCard card = fuelCardRepository.findById(transaction.getFuelCardId()).orElseThrow();
-        if (fuelUsedLitres > card.getBalanceLitres()) {
-            throw new IllegalArgumentException(String.format(
-                    "%.1f L is more than fuel card %s holds (%.1f L). Check the litres used.",
-                    fuelUsedLitres, card.getCardNumber(), card.getBalanceLitres()));
+        // the fuel drawn on the trip comes off the card it was loaded onto; a trip that went out
+        // on the fuel already in the tank had nothing loaded, so only the usage is recorded
+        FuelTransaction transaction = fuelTransactionRepository.findFirstByRequestIdOrderByIdDesc(requestId).orElse(null);
+        if (transaction != null) {
+            FuelCard card = fuelCardRepository.findById(transaction.getFuelCardId()).orElseThrow();
+            if (fuelUsedLitres > card.getBalanceLitres()) {
+                throw new IllegalArgumentException(String.format(
+                        "%.1f L is more than fuel card %s holds (%.1f L). Check the litres used.",
+                        fuelUsedLitres, card.getCardNumber(), card.getBalanceLitres()));
+            }
+            card.setBalanceLitres(card.getBalanceLitres() - fuelUsedLitres);
+            fuelCardRepository.save(card);
+            transaction.setConsumedLitres(fuelUsedLitres);
+            transaction.setRemainingBalance(card.getBalanceLitres());
+            fuelTransactionRepository.save(transaction);
         }
-        card.setBalanceLitres(card.getBalanceLitres() - fuelUsedLitres);
-        fuelCardRepository.save(card);
-        transaction.setConsumedLitres(fuelUsedLitres);
-        transaction.setRemainingBalance(card.getBalanceLitres());
-        fuelTransactionRepository.save(transaction);
 
         Vehicle vehicle = vehicleRepository.findById(allocation.getVehicleId()).orElseThrow();
         vehicle.setStatus(VehicleStatus.AVAILABLE);

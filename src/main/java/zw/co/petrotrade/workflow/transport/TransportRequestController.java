@@ -16,6 +16,7 @@ import zw.co.petrotrade.workflow.user.Role;
 import zw.co.petrotrade.workflow.user.User;
 import zw.co.petrotrade.workflow.transport.dto.ExtensionDecisionRequest;
 import zw.co.petrotrade.workflow.transport.dto.ExtensionRequest;
+import zw.co.petrotrade.workflow.transport.dto.FuelCalculationRequest;
 import zw.co.petrotrade.workflow.transport.dto.RequestAuditResponse;
 import zw.co.petrotrade.workflow.transport.dto.TransportRequestCreateRequest;
 import zw.co.petrotrade.workflow.transport.dto.TransportRequestResponse;
@@ -70,8 +71,8 @@ public class TransportRequestController {
 
     @PostMapping("/{id}/calculate-fuel")
     @PreAuthorize("hasRole('VEHICLE_ADMIN')")
-    public TransportRequestResponse calculateFuel(@PathVariable Long id) {
-        return TransportRequestResponse.from(service.calculateFuel(id));
+    public TransportRequestResponse calculateFuel(@PathVariable Long id, @Valid @RequestBody(required = false) FuelCalculationRequest body) {
+        return TransportRequestResponse.from(service.calculateFuel(id, body == null ? null : body.litres(), body == null ? null : body.reason()));
     }
 
     // the driver (or a vehicle admin for them) asks to keep the vehicle longer, or explains why it's late

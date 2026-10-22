@@ -14,6 +14,7 @@ import zw.co.petrotrade.workflow.transport.RequestStatus;
 import zw.co.petrotrade.workflow.transport.ReturnDelayService;
 import zw.co.petrotrade.workflow.transport.TransportRequest;
 import zw.co.petrotrade.workflow.transport.TransportRequestRepository;
+import zw.co.petrotrade.workflow.transport.TripType;
 import zw.co.petrotrade.workflow.user.UserRepository;
 import zw.co.petrotrade.workflow.vehicle.Vehicle;
 import zw.co.petrotrade.workflow.vehicle.VehicleAllocation;
@@ -93,6 +94,8 @@ public class ReportService {
             if (filter.fuelTypeId() != null && (trip.getFuelType() == null || !filter.fuelTypeId().equals(trip.getFuelType().getId()))) continue;
             if (filter.approver() != null && !filter.approver().isBlank() && decisions.stream()
                     .noneMatch(a -> filter.approver().trim().equalsIgnoreCase(a.getApprover()))) continue;
+            TripType tripType = TripType.of(trip.getDistanceKm());
+            if (filter.tripType() != null && filter.tripType() != tripType) continue;
             Long daysLate = daysLate(trip, allocation, today);
             if (Boolean.TRUE.equals(filter.lateOnly()) && daysLate == null) continue;
 
@@ -105,10 +108,12 @@ public class ReportService {
                     vehicle == null ? null : vehicle.getRegistrationNumber(),
                     vehicle == null ? null : vehicle.getMake() + " " + vehicle.getModel(),
                     trip.getStartingPoint() + " → " + trip.getDestination(),
+                    label(tripType),
                     trip.getDistanceKm(),
                     allocation == null ? null : allocation.getDistanceTravelledKm(),
                     trip.getFuelType() == null ? null : trip.getFuelType().getName(),
                     litresByRequest.get(trip.getId()),
+                    trip.getFuelOverReason(),
                     allocation == null ? null : allocation.getFuelUsedLitres(),
                     approver(decisions, ApprovalLevel.HOD),
                     approver(decisions, ApprovalLevel.HR_ADMIN),
@@ -128,7 +133,9 @@ public class ReportService {
                 sum(rows, TripReport.Row::fuelUsedLitres),
                 rows.stream().map(TripReport.Row::vehicle).filter(Objects::nonNull).distinct().count(),
                 rows.stream().map(TripReport.Row::driver).filter(Objects::nonNull).distinct().count(),
-                rows.stream().filter(r -> r.daysLate() != null).count());
+                rows.stream().filter(r -> r.daysLate() != null).count(),
+                rows.stream().filter(r -> label(TripType.LOCAL).equals(r.tripType())).count(),
+                rows.stream().filter(r -> label(TripType.EXTERNAL).equals(r.tripType())).count());
 
         return new TripReport(filter.from(), filter.to(), describe(filter), rows, totals,
                 leaders(rows, TripReport.Row::driver, TripReport.Row::department,
@@ -191,6 +198,10 @@ public class ReportService {
     }
 
     // "Vehicle: AZW 6789 · Driver: Jane Moyo" — printed on the exports so a file says what it covers
+    private static String label(TripType type) {
+        return type == TripType.EXTERNAL ? "External" : "Local";
+    }
+
     private String describe(TripReport.Filter filter) {
         List<String> parts = new ArrayList<>();
         if (filter.vehicleId() != null) {
@@ -207,6 +218,9 @@ public class ReportService {
         }
         if (Boolean.TRUE.equals(filter.lateOnly())) {
             parts.add("Late returns only");
+        }
+        if (filter.tripType() != null) {
+            parts.add(label(filter.tripType()) + " trips only");
         }
         return parts.isEmpty() ? "All trips" : String.join(" · ", parts);
     }

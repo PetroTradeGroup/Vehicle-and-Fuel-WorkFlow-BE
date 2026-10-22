@@ -50,7 +50,11 @@ public class FuelApprovalService {
         VehicleAllocation allocation =
                 vehicleAllocationRepository.findByRequestId(requestId).orElseThrow();
 
-        if (approved) {
+        boolean loadsFuel = request.getFuelRequiredLitres() != null && request.getFuelRequiredLitres() > 0;
+        if (approved && !loadsFuel) {
+            // the vehicle admin found enough in the tank: the trip is signed off with nothing loaded
+            request.setStatus(RequestStatus.FUEL_APPROVED);
+        } else if (approved) {
             FuelCard card = fuelCardService.credit(
                     resolveCard(request, allocation, usePersonalCard), request.getFuelRequiredLitres());
 
@@ -79,7 +83,8 @@ public class FuelApprovalService {
         requestRepository.save(request);
         notifications.notifyUser(request.getDriverId(), "Request #" + requestId + (approved ? " approved: you can go" : " rejected by HR & Admin"),
                 approved
-                        ? "HR & Admin approved your trip to " + request.getDestination() + ". " + request.getFuelRequiredLitres() + " litres of fuel were loaded.\n"
+                        ? "HR & Admin approved your trip to " + request.getDestination() + ". "
+                                + (loadsFuel ? request.getFuelRequiredLitres() + " litres of fuel were loaded.\n" : "No fuel was loaded: the vehicle has enough.\n")
                         : "HR & Admin rejected your trip to " + request.getDestination() + ".\n"
                                 + (comments == null || comments.isBlank() ? "" : "Comment from " + approver + ": " + comments.trim() + "\n"),
                 NotificationService.requestLink(requestId));

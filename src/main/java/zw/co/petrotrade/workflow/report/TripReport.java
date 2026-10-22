@@ -1,6 +1,7 @@
 package zw.co.petrotrade.workflow.report;
 
 import org.springframework.format.annotation.DateTimeFormat;
+import zw.co.petrotrade.workflow.transport.TripType;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -31,7 +32,8 @@ public record TripReport(
             Long fuelTypeId,
             String approver,
             // only trips that came back after their return date, or are still out past it
-            Boolean lateOnly) {
+            Boolean lateOnly,
+            TripType tripType) {
     }
 
     public record Row(
@@ -43,12 +45,16 @@ public record TripReport(
             String vehicle,
             String vehicleModel,
             String route,
+            // Local / External
+            String tripType,
             Double distanceKm,
             // recorded when the vehicle came back (optional there)
             Double distanceTravelledKm,
             String fuelType,
             // fuel loaded onto a card for the trip
             Double litresIssued,
+            // the vehicle admin's explanation when more than calculated was loaded
+            String extraFuelReason,
             // fuel actually drawn, recorded on return
             Double fuelUsedLitres,
             String hodApprover,
@@ -64,6 +70,7 @@ public record TripReport(
     }
 
     public record Totals(int trips, double distanceKm, double distanceTravelledKm, double litresIssued,
-                         double fuelUsedLitres, long vehicles, long drivers, long lateReturns) {
+                         double fuelUsedLitres, long vehicles, long drivers, long lateReturns,
+                         long localTrips, long externalTrips) {
     }
 }

@@ -6,6 +6,7 @@ import zw.co.petrotrade.workflow.approval.ApprovalLevel;
 import zw.co.petrotrade.workflow.approval.ApprovalRepository;
 import zw.co.petrotrade.workflow.approval.ApprovalService;
 import zw.co.petrotrade.workflow.fuel.FuelApprovalService;
+import zw.co.petrotrade.workflow.fuel.FuelCalculationService;
 import zw.co.petrotrade.workflow.fuel.FuelCard;
 import zw.co.petrotrade.workflow.fuel.FuelCardRepository;
 import zw.co.petrotrade.workflow.fuel.FuelTransaction;
@@ -14,6 +15,7 @@ import zw.co.petrotrade.workflow.notification.NotificationService;
 import zw.co.petrotrade.workflow.transport.RequestStatus;
 import zw.co.petrotrade.workflow.transport.TransportRequest;
 import zw.co.petrotrade.workflow.transport.TransportRequestRepository;
+import zw.co.petrotrade.workflow.transport.TransportRequestService;
 import zw.co.petrotrade.workflow.transport.TripType;
 import zw.co.petrotrade.workflow.vehicle.Vehicle;
 import zw.co.petrotrade.workflow.vehicle.VehicleAllocation;
@@ -125,6 +127,50 @@ class TripWorkflowTest {
         assertEquals(ApprovalLevel.HR_ADMIN, decision.getLevel());
         assertEquals(RequestStatus.REJECTED_HR_ADMIN, request.getStatus());
         assertEquals(VehicleStatus.AVAILABLE, car.getStatus());
+    }
+
+    @Test
+    void aTripOnTheFuelInTheTankLoadsNothingAndStillReturns() {
+        TransportRequest request = request(RequestStatus.FUEL_CALCULATED);
+        request.setFuelRequiredLitres(0.0);
+        VehicleAllocation allocation = new VehicleAllocation();
+        allocation.setVehicleId(7L);
+        allocation.setOdometerOutKm(1_000.0);
+        when(allocations.findByRequestId(1L)).thenReturn(Optional.of(allocation));
+        when(transactions.findFirstByRequestIdOrderByIdDesc(1L)).thenReturn(Optional.empty());
+
+        // no card service: crediting a card would fail the test
+        new FuelApprovalService(requests, transactions, approvals, allocations, null, vehicles, mock(NotificationService.class))
+                .decide(1L, true, false, "HR Manager", null);
+        assertEquals(RequestStatus.FUEL_APPROVED, request.getStatus());
+        verify(transactions, never()).save(any());
+
+        vehicle(1_000.0).setStatus(VehicleStatus.ALLOCATED);
+        VehicleAllocation back = allocationService.returnVehicle(1L, "Admin", 8, 1_050);
+        assertEquals(8.0, back.getFuelUsedLitres());
+        assertEquals(RequestStatus.COMPLETED, request.getStatus());
+    }
+
+    @Test
+    void onlyLocalTripsCanChangeTheFuelAndExtraNeedsAReason() {
+        TransportRequestService service = new TransportRequestService(requests, null, new FuelCalculationService(), mock(NotificationService.class), approvals);
+
+        // external (300 km = 30 L): the calculation stands
+        TransportRequest external = request(RequestStatus.VEHICLE_ALLOCATED);
+        external.setDistanceKm(300.0);
+        assertThrows(IllegalArgumentException.class, () -> service.calculateFuel(1L, 10.0, null));
+        assertEquals(30.0, service.calculateFuel(1L, null, null).getFuelRequiredLitres());
+
+        // local (40 km = 4 L): less is fine, more needs a reason
+        TransportRequest local = request(RequestStatus.VEHICLE_ALLOCATED);
+        local.setDistanceKm(40.0);
+        assertEquals(0.0, service.calculateFuel(1L, 0.0, null).getFuelRequiredLitres());
+        local.setStatus(RequestStatus.VEHICLE_ALLOCATED);
+        assertThrows(IllegalArgumentException.class, () -> service.calculateFuel(1L, 10.0, " "));
+        TransportRequest extra = service.calculateFuel(1L, 10.0, "Generator run at the site");
+        assertEquals(10.0, extra.getFuelRequiredLitres());
+        assertEquals(4.0, extra.getFuelSuggestedLitres());
+        assertEquals("Generator run at the site", extra.getFuelOverReason());
     }
 
     private TransportRequest request(RequestStatus status) {

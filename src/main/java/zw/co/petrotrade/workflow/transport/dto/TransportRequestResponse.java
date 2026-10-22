@@ -24,6 +24,9 @@ public record TransportRequestResponse(
         Double distanceKm,
         TripType tripType,
         Double fuelRequiredLitres,
+        Double fuelSuggestedLitres,
+        // why the vehicle admin loaded more than calculated
+        String fuelOverReason,
         FuelTypeResponse fuelType,
         String requestedVehicleReg,
         Double tollFees,
@@ -53,6 +56,8 @@ public record TransportRequestResponse(
                 request.getDistanceKm(),
                 TripType.of(request.getDistanceKm()),
                 request.getFuelRequiredLitres(),
+                request.getFuelSuggestedLitres(),
+                request.getFuelOverReason(),
                 FuelTypeResponse.from(request.getFuelType()),
                 request.getRequestedVehicleReg(),
                 request.getTollFees(),

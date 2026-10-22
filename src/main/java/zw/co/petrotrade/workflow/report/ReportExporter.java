@@ -36,10 +36,12 @@ public class ReportExporter {
             new TableExport.Col<>("Vehicle", 13, TripReport.Row::vehicle),
             new TableExport.Col<>("Make / model", 18, TripReport.Row::vehicleModel),
             new TableExport.Col<>("Route", 28, TripReport.Row::route),
+            new TableExport.Col<>("Trip type", 10, TripReport.Row::tripType),
             new TableExport.Col<>("Planned distance (km)", 13, TripReport.Row::distanceKm),
             new TableExport.Col<>("Distance travelled (km)", 13, TripReport.Row::distanceTravelledKm),
             new TableExport.Col<>("Fuel type", 12, TripReport.Row::fuelType),
             new TableExport.Col<>("Fuel issued (L)", 12, TripReport.Row::litresIssued),
+            new TableExport.Col<>("Extra fuel reason", 30, TripReport.Row::extraFuelReason),
             new TableExport.Col<>("Fuel used (L)", 12, TripReport.Row::fuelUsedLitres),
             new TableExport.Col<>("HOD approval", 20, TripReport.Row::hodApprover),
             new TableExport.Col<>("HR & Admin approval", 20, TripReport.Row::hrApprover),
@@ -57,7 +59,7 @@ public class ReportExporter {
     public byte[] excel(TripReport report, String generatedBy) {
         TripReport.Totals t = report.totals();
         return TableExport.excel("Trips", "Vehicle trips report", meta(report, generatedBy), COLUMNS, report.rows(),
-                t.trips() + " trips, " + t.lateReturns() + " late",
+                t.trips() + " trips (" + t.localTrips() + " local, " + t.externalTrips() + " external), " + t.lateReturns() + " late",
                 Map.of("Planned distance (km)", t.distanceKm(),
                         "Distance travelled (km)", t.distanceTravelledKm(),
                         "Fuel issued (L)", t.litresIssued(),
@@ -80,7 +82,7 @@ public class ReportExporter {
 
         TripReport.Totals t = report.totals();
         TableExport.header(doc, "Vehicle trips report", meta(report, generatedBy),
-                t.trips() + " trips   ·   " + format(t.distanceKm()) + " km   ·   "
+                t.trips() + " trips (" + t.localTrips() + " local, " + t.externalTrips() + " external)   ·   " + format(t.distanceKm()) + " km   ·   "
                         + format(t.litresIssued()) + " L issued   ·   " + format(t.fuelUsedLitres()) + " L used   ·   "
                         + t.vehicles() + " vehicles   ·   " + t.drivers() + " drivers   ·   " + t.lateReturns() + " late");
 
@@ -111,12 +113,12 @@ public class ReportExporter {
             table.addCell(cell(row.driver(), body, row.department() == null ? null : new Phrase(row.department(), muted), bg, false));
             table.addCell(cell(row.vehicle(), body, row.vehicleModel() == null ? null : new Phrase(row.vehicleModel(), muted), bg, false));
             // the built-in PDF fonts have no arrow glyph; an en dash prints everywhere
-            table.addCell(cell(row.route().replace(" → ", " – "), body, null, bg, false));
+            table.addCell(cell(row.route().replace(" → ", " – "), body, new Phrase(row.tripType(), muted), bg, false));
             // planned, with the odometer distance underneath when it was recorded
             table.addCell(cell(format(row.distanceKm()), body,
                     row.distanceTravelledKm() == null ? null : new Phrase("actual " + format(row.distanceTravelledKm()), muted), bg, true));
             table.addCell(cell(row.fuelType(), body, null, bg, false));
-            table.addCell(cell(format(row.litresIssued()), body, null, bg, true));
+            table.addCell(cell(format(row.litresIssued()), body, row.extraFuelReason() == null ? null : new Phrase("extra: " + row.extraFuelReason(), muted), bg, true));
             table.addCell(cell(format(row.fuelUsedLitres()), body, null, bg, true));
             table.addCell(cell(approvers(row), body, null, bg, false));
             table.addCell(cell(row.allocatedBy(), body, null, bg, false));
