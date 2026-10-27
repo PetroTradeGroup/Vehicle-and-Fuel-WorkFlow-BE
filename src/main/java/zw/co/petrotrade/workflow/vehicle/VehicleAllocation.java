@@ -35,4 +35,7 @@ public class VehicleAllocation {
     private Double odometerOutKm;
 
     private Double odometerInKm;
+
+    // the vehicle's reading before this allocation, put back if the allocation is undone
+    private Double odometerBeforeKm;
 }

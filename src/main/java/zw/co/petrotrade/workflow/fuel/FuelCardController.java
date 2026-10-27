@@ -50,6 +50,12 @@ public class FuelCardController {
         return FuelCardResponse.from(card);
     }
 
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
+    public FuelCardResponse update(@PathVariable Long id, @Valid @RequestBody FuelCardRequest request) {
+        return FuelCardResponse.from(fuelCardService.update(id, request));
+    }
+
     // vehicle admins see nothing about stations, unless they also oversee them
     private boolean seesStations() {
         return !currentUser.has(Role.VEHICLE_ADMIN) || currentUser.has(Role.HR_ADMIN_MANAGER, Role.SYSTEM_ADMIN);

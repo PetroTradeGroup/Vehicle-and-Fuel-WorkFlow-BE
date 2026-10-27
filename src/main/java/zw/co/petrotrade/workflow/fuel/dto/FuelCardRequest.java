@@ -8,7 +8,9 @@ import zw.co.petrotrade.workflow.fuel.FuelCard;
 public record FuelCardRequest(
         @NotBlank String cardNumber,
         @NotNull CardHolderType holderType,
-        @NotNull Long holderId) {
+        @NotNull Long holderId,
+        // only read on update; new cards always start active
+        Boolean active) {
 
     public FuelCard toEntity() {
         FuelCard card = new FuelCard();

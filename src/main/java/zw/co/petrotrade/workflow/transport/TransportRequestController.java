@@ -9,6 +9,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
 import zw.co.petrotrade.workflow.approval.ApprovalRepository;
 import zw.co.petrotrade.workflow.approval.ApprovalSubject;
+import zw.co.petrotrade.workflow.fuel.FuelTransactionRepository;
 import zw.co.petrotrade.workflow.fuel.FuelType;
 import zw.co.petrotrade.workflow.fuel.FuelTypeService;
 import zw.co.petrotrade.workflow.security.CurrentUser;
@@ -34,6 +35,7 @@ public class TransportRequestController {
     private final TransportRequestRepository requestRepository;
     private final ApprovalRepository approvalRepository;
     private final VehicleAllocationRepository vehicleAllocationRepository;
+    private final FuelTransactionRepository fuelTransactionRepository;
     private final FuelTypeService fuelTypeService;
     private final CurrentUser currentUser;
 
@@ -75,6 +77,12 @@ public class TransportRequestController {
         return TransportRequestResponse.from(service.calculateFuel(id, body == null ? null : body.litres(), body == null ? null : body.reason()));
     }
 
+    @PostMapping("/{id}/calculate-fuel/undo")
+    @PreAuthorize("hasRole('VEHICLE_ADMIN')")
+    public TransportRequestResponse undoFuelCalculation(@PathVariable Long id) {
+        return TransportRequestResponse.from(service.undoFuelCalculation(id));
+    }
+
     // the driver (or a vehicle admin for them) asks to keep the vehicle longer, or explains why it's late
     @PostMapping("/{id}/extension")
     public TransportRequestResponse requestExtension(@PathVariable Long id, @Valid @RequestBody ExtensionRequest body) {
@@ -99,7 +107,8 @@ public class TransportRequestController {
                 request,
                 approvalRepository.findBySubjectAndRequestIdOrderByApprovalDateAsc(
                         ApprovalSubject.TRANSPORT_REQUEST, id),
-                vehicleAllocationRepository.findByRequestId(id).orElse(null));
+                vehicleAllocationRepository.findByRequestId(id).orElse(null),
+                fuelTransactionRepository.findFirstByRequestIdOrderByIdDesc(id).orElse(null));
         return RequestAuditResponse.from(audit);
     }
 

@@ -32,4 +32,11 @@ public class FuelTransaction {
     private Double remainingBalance;
 
     private LocalDateTime transactionDate;
+
+    // trip fuel waits at false until IT loads it; null on rows from before IT loaded fuel, which count as loaded
+    private Boolean loaded;
+
+    private String loadedBy;
+
+    private LocalDateTime loadedAt;
 }

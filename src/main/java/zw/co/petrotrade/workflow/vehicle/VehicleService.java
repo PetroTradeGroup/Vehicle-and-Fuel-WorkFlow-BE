@@ -9,6 +9,7 @@ public interface VehicleService
 {
     Vehicle create(VehicleRequest request);
     List<Vehicle> findAll();
+    List<Vehicle> search(String q, VehicleStatus status);
     Vehicle findById(Long id);
     Vehicle update(Long id, VehicleRequest request);
     Vehicle recordService(Long id, VehicleServiceRequest request);

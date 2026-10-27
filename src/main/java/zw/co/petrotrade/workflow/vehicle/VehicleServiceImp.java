@@ -1,6 +1,7 @@
 package zw.co.petrotrade.workflow.vehicle;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import zw.co.petrotrade.workflow.fuel.CardHolderType;
 import zw.co.petrotrade.workflow.fuel.FuelCardRepository;
@@ -32,6 +33,10 @@ public class VehicleServiceImp implements VehicleService {
 
     public List<Vehicle> findAll() {
         return repository.findAll();
+    }
+
+    public List<Vehicle> search(String q, VehicleStatus status) {
+        return repository.search(q == null || q.isBlank() ? null : q.trim(), status, PageRequest.of(0, 50));
     }
 
     public Vehicle findById(Long id) {

@@ -11,6 +11,7 @@ import zw.co.petrotrade.workflow.notification.NotificationService;
 import zw.co.petrotrade.workflow.transport.RequestStatus;
 import zw.co.petrotrade.workflow.transport.TransportRequest;
 import zw.co.petrotrade.workflow.transport.TransportRequestRepository;
+import zw.co.petrotrade.workflow.transport.TransportRequestService;
 
 import java.time.LocalDateTime;
 
@@ -55,11 +56,13 @@ public class VehicleAllocationServiceImp implements VehicleAllocationService {
                     vehicle.getOdometerKm(), vehicle.getRegistrationNumber()));
         }
 
+        VehicleAllocation allocation = new VehicleAllocation();
+        allocation.setOdometerBeforeKm(vehicle.getOdometerKm());
+
         vehicle.setStatus(VehicleStatus.ALLOCATED);
         vehicle.setOdometerKm(odometerOut);
         vehicleRepository.save(vehicle);
 
-        VehicleAllocation allocation = new VehicleAllocation();
         allocation.setRequestId(requestId);
         allocation.setVehicleId(vehicleId);
         allocation.setAllocatedBy(allocatedBy);
@@ -74,6 +77,33 @@ public class VehicleAllocationServiceImp implements VehicleAllocationService {
                 NotificationService.requestLink(requestId));
 
         return allocationRepository.save(allocation);
+    }
+
+    // the vehicle admin picked the wrong vehicle: free it and send the request back to allocation.
+    // Works until HR & Admin approve; any fuel calculated for it is undone too.
+    @Transactional
+    public TransportRequest undoAllocation(Long requestId) {
+
+        TransportRequest request = requestRepository.findById(requestId).orElseThrow();
+
+        if (request.getStatus() != RequestStatus.VEHICLE_ALLOCATED && request.getStatus() != RequestStatus.FUEL_CALCULATED) {
+            throw new IllegalStateException("The vehicle can only be changed before HR & Admin approve the trip. "
+                    + request.getStatus().alreadyMovedOn());
+        }
+
+        VehicleAllocation allocation = allocationRepository.findByRequestId(requestId).orElseThrow();
+        Vehicle vehicle = vehicleRepository.findById(allocation.getVehicleId()).orElseThrow();
+        vehicle.setStatus(VehicleStatus.AVAILABLE);
+        // allocations from before this was recorded keep the reading they went out with
+        if (allocation.getOdometerBeforeKm() != null) {
+            vehicle.setOdometerKm(allocation.getOdometerBeforeKm());
+        }
+        vehicleRepository.save(vehicle);
+        allocationRepository.delete(allocation);
+
+        TransportRequestService.clearFuelCalculation(request);
+        request.setStatus(RequestStatus.APPROVED_HOD);
+        return requestRepository.save(request);
     }
 
     @Transactional
@@ -98,6 +128,10 @@ public class VehicleAllocationServiceImp implements VehicleAllocationService {
         // the fuel drawn on the trip comes off the card it was loaded onto; a trip that went out
         // on the fuel already in the tank had nothing loaded, so only the usage is recorded
         FuelTransaction transaction = fuelTransactionRepository.findFirstByRequestIdOrderByIdDesc(requestId).orElse(null);
+        if (transaction != null && Boolean.FALSE.equals(transaction.getLoaded())) {
+            throw new IllegalStateException("IT hasn't loaded this trip's fuel yet, so nothing can come off the card. "
+                    + "Ask IT to load it on the Fuel Loading page first.");
+        }
         if (transaction != null) {
             FuelCard card = fuelCardRepository.findById(transaction.getFuelCardId()).orElseThrow();
             if (fuelUsedLitres > card.getBalanceLitres()) {

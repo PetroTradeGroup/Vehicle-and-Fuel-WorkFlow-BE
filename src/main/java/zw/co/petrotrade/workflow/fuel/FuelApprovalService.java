@@ -29,6 +29,7 @@ public class FuelApprovalService {
     private final ApprovalRepository approvalRepository;
     private final VehicleAllocationRepository vehicleAllocationRepository;
     private final FuelCardService fuelCardService;
+    private final FuelCardRepository fuelCardRepository;
     private final VehicleRepository vehicleRepository;
     private final NotificationService notifications;
 
@@ -55,8 +56,8 @@ public class FuelApprovalService {
             // the vehicle admin found enough in the tank: the trip is signed off with nothing loaded
             request.setStatus(RequestStatus.FUEL_APPROVED);
         } else if (approved) {
-            FuelCard card = fuelCardService.credit(
-                    resolveCard(request, allocation, usePersonalCard), request.getFuelRequiredLitres());
+            // the card is picked now but only credited once IT has loaded the fuel onto it
+            FuelCard card = resolveCard(request, allocation, usePersonalCard);
 
             FuelTransaction transaction = new FuelTransaction();
             transaction.setRequestId(requestId);
@@ -65,8 +66,8 @@ public class FuelApprovalService {
             transaction.setDriverId(request.getDriverId());
             transaction.setAllocatedLitres(request.getFuelRequiredLitres());
             transaction.setConsumedLitres(0.0);
-            transaction.setRemainingBalance(card.getBalanceLitres());
             transaction.setTransactionDate(LocalDateTime.now());
+            transaction.setLoaded(false);
             fuelTransactionRepository.save(transaction);
 
             // the trip is still ahead; the vehicle is released when it is returned
@@ -81,16 +82,45 @@ public class FuelApprovalService {
         }
 
         requestRepository.save(request);
-        notifications.notifyUser(request.getDriverId(), "Request #" + requestId + (approved ? " approved: you can go" : " rejected by HR & Admin"),
+        notifications.notifyUser(request.getDriverId(), "Request #" + requestId
+                        + (!approved ? " rejected by HR & Admin" : loadsFuel ? " approved: fuel is being loaded" : " approved: you can go"),
                 approved
                         ? "HR & Admin approved your trip to " + request.getDestination() + ". "
-                                + (loadsFuel ? request.getFuelRequiredLitres() + " litres of fuel were loaded.\n" : "No fuel was loaded: the vehicle has enough.\n")
+                                + (loadsFuel ? "IT will load " + request.getFuelRequiredLitres() + " litres of fuel; you'll be told when it's on the card.\n"
+                                        : "No fuel was loaded: the vehicle has enough.\n")
                         : "HR & Admin rejected your trip to " + request.getDestination() + ".\n"
                                 + (comments == null || comments.isBlank() ? "" : "Comment from " + approver + ": " + comments.trim() + "\n"),
                 NotificationService.requestLink(requestId));
 
         return approvalRepository.save(Approval.record(
                 ApprovalSubject.TRANSPORT_REQUEST, requestId, ApprovalLevel.HR_ADMIN, approved, approver, comments));
+    }
+
+    // IT has put the approved fuel on the physical card: only now does the card's balance go up
+    @Transactional
+    public FuelTransaction markLoaded(Long transactionId, String loadedBy) {
+        FuelTransaction transaction = fuelTransactionRepository.findById(transactionId).orElseThrow();
+        if (transaction.getRequestId() == null || !Boolean.FALSE.equals(transaction.getLoaded())) {
+            throw new IllegalStateException("This fuel has already been loaded. Refresh to see the latest.");
+        }
+        FuelCard card = fuelCardRepository.findById(transaction.getFuelCardId()).orElseThrow();
+        if (!Boolean.TRUE.equals(card.getActive())) {
+            throw new IllegalStateException("Fuel card " + card.getCardNumber() + " is switched off, so fuel can't be loaded onto it.");
+        }
+        card = fuelCardService.credit(card, transaction.getAllocatedLitres());
+
+        transaction.setLoaded(true);
+        transaction.setLoadedBy(loadedBy);
+        transaction.setLoadedAt(LocalDateTime.now());
+        transaction.setRemainingBalance(card.getBalanceLitres());
+        fuelTransactionRepository.save(transaction);
+
+        TransportRequest request = requestRepository.findById(transaction.getRequestId()).orElseThrow();
+        notifications.notifyUser(request.getDriverId(), "Request #" + request.getId() + ": fuel loaded, you can go",
+                transaction.getAllocatedLitres() + " litres were loaded onto fuel card " + card.getCardNumber()
+                        + " for your trip to " + request.getDestination() + ".\n",
+                NotificationService.requestLink(request.getId()));
+        return transaction;
     }
 
     private FuelCard resolveCard(TransportRequest request, VehicleAllocation allocation, boolean usePersonalCard) {

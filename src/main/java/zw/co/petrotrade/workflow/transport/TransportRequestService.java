@@ -66,8 +66,8 @@ public class TransportRequestService {
         return null;
     }
 
-    // Local trips: litres is the vehicle admin's call after checking the tank and card (0 = it has enough), with a
-    // reason when it's more than calculated. External trips always load the calculated amount. null loads the calculated amount.
+    // litres is the vehicle admin's call after checking the tank and card (0 = it has enough), with a
+    // reason when it's more than calculated. null loads the calculated amount.
     public TransportRequest calculateFuel(Long requestId, Double litres, String reason) {
 
         TransportRequest request = repository.findById(requestId).orElseThrow();
@@ -79,11 +79,7 @@ public class TransportRequestService {
 
         Double suggested = fuelCalculationService.calculateFuel(request.getDistanceKm());
         double load = litres == null ? suggested : litres;
-        // a tenth of a litre either way is rounding, not a change
-        if (TripType.of(request.getDistanceKm()) == TripType.EXTERNAL && Math.abs(load - suggested) > 0.05) {
-            throw new IllegalArgumentException(String.format(
-                    "External trips load the calculated fuel (%.1f L). Only local trips can be changed.", suggested));
-        }
+        // a tenth of a litre over is rounding, not extra
         boolean over = load > suggested + 0.05;
         if (over && (reason == null || reason.isBlank())) {
             throw new IllegalArgumentException(String.format(
@@ -99,5 +95,26 @@ public class TransportRequestService {
         notificationService.notifyFuelRequestSubmitted(request);
 
         return request;
+    }
+
+    // the vehicle admin got the fuel wrong: back to "waiting for fuel" so it can be calculated again
+    public TransportRequest undoFuelCalculation(Long requestId) {
+        TransportRequest request = repository.findById(requestId).orElseThrow();
+        if (request.getStatus() != RequestStatus.FUEL_CALCULATED) {
+            throw new IllegalStateException("Fuel can only be recalculated before HR & Admin approve the trip. "
+                    + request.getStatus().alreadyMovedOn());
+        }
+        clearFuelCalculation(request);
+        request.setStatus(RequestStatus.VEHICLE_ALLOCATED);
+        return repository.save(request);
+    }
+
+    // back to what create() set: the distance's litres, nothing chosen by the vehicle admin
+    public static void clearFuelCalculation(TransportRequest request) {
+        if (request.getFuelSuggestedLitres() != null) {
+            request.setFuelRequiredLitres(request.getFuelSuggestedLitres());
+        }
+        request.setFuelSuggestedLitres(null);
+        request.setFuelOverReason(null);
     }
 }

@@ -25,9 +25,15 @@ public class VehicleController {
         return VehicleResponse.from(service.create(request));
     }
 
+    // no params: every vehicle, as before. ?q=aaz&status=AVAILABLE for the allocation picker (first 50 matches)
     @GetMapping
-    public List<VehicleResponse> list() {
-        return service.findAll().stream().map(VehicleResponse::from).toList();
+    public List<VehicleResponse> list(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) VehicleStatus status) {
+        List<Vehicle> found = (q == null || q.isBlank()) && status == null
+                ? service.findAll()
+                : service.search(q, status);
+        return found.stream().map(VehicleResponse::from).toList();
     }
 
     @GetMapping("/{id}")

@@ -8,7 +8,9 @@ import zw.co.petrotrade.workflow.approval.ApprovalService;
 import zw.co.petrotrade.workflow.fuel.FuelApprovalService;
 import zw.co.petrotrade.workflow.fuel.FuelCalculationService;
 import zw.co.petrotrade.workflow.fuel.FuelCard;
+import zw.co.petrotrade.workflow.fuel.CardHolderType;
 import zw.co.petrotrade.workflow.fuel.FuelCardRepository;
+import zw.co.petrotrade.workflow.fuel.FuelCardService;
 import zw.co.petrotrade.workflow.fuel.FuelTransaction;
 import zw.co.petrotrade.workflow.fuel.FuelTransactionRepository;
 import zw.co.petrotrade.workflow.notification.NotificationService;
@@ -78,6 +80,30 @@ class TripWorkflowTest {
     }
 
     @Test
+    void aWrongAllocationCanBeUndoneUntilHrAndAdminApprove() {
+        TransportRequest request = request(RequestStatus.APPROVED_HOD);
+        Vehicle car = vehicle(1_000.0);
+        VehicleAllocation allocation = allocationService.allocate(1L, 7L, "Admin", 1_500.0);
+        when(allocations.findByRequestId(1L)).thenReturn(Optional.of(allocation));
+        request.setStatus(RequestStatus.FUEL_CALCULATED);
+        request.setFuelSuggestedLitres(30.0);
+        request.setFuelRequiredLitres(40.0);
+        request.setFuelOverReason("Extra");
+
+        allocationService.undoAllocation(1L);
+
+        assertEquals(RequestStatus.APPROVED_HOD, request.getStatus());
+        assertEquals(VehicleStatus.AVAILABLE, car.getStatus());
+        assertEquals(1_000.0, car.getOdometerKm());
+        assertEquals(30.0, request.getFuelRequiredLitres());
+        assertNull(request.getFuelOverReason());
+        verify(allocations).delete(allocation);
+
+        request.setStatus(RequestStatus.FUEL_APPROVED);
+        assertThrows(IllegalStateException.class, () -> allocationService.undoAllocation(1L));
+    }
+
+    @Test
     void allocationNeedsAReadingAndItCantGoBackwards() {
         request(RequestStatus.APPROVED_HOD);
         vehicle(null);
@@ -121,7 +147,7 @@ class TripWorkflowTest {
         allocation.setVehicleId(7L);
         when(allocations.findByRequestId(1L)).thenReturn(Optional.of(allocation));
 
-        FuelApprovalService finalApproval = new FuelApprovalService(requests, transactions, approvals, allocations, null, vehicles, mock(NotificationService.class));
+        FuelApprovalService finalApproval = new FuelApprovalService(requests, transactions, approvals, allocations, null, cards, vehicles, mock(NotificationService.class));
         Approval decision = finalApproval.decide(1L, false, false, "HR Manager", "Not needed");
 
         assertEquals(ApprovalLevel.HR_ADMIN, decision.getLevel());
@@ -140,7 +166,7 @@ class TripWorkflowTest {
         when(transactions.findFirstByRequestIdOrderByIdDesc(1L)).thenReturn(Optional.empty());
 
         // no card service: crediting a card would fail the test
-        new FuelApprovalService(requests, transactions, approvals, allocations, null, vehicles, mock(NotificationService.class))
+        new FuelApprovalService(requests, transactions, approvals, allocations, null, cards, vehicles, mock(NotificationService.class))
                 .decide(1L, true, false, "HR Manager", null);
         assertEquals(RequestStatus.FUEL_APPROVED, request.getStatus());
         verify(transactions, never()).save(any());
@@ -152,14 +178,52 @@ class TripWorkflowTest {
     }
 
     @Test
-    void onlyLocalTripsCanChangeTheFuelAndExtraNeedsAReason() {
+    void theCardOnlyGoesUpOnceItHasLoadedTheFuel() {
+        TransportRequest request = request(RequestStatus.FUEL_CALCULATED);
+        request.setFuelRequiredLitres(30.0);
+        VehicleAllocation allocation = new VehicleAllocation();
+        allocation.setVehicleId(7L);
+        when(allocations.findByRequestId(1L)).thenReturn(Optional.of(allocation));
+        FuelCard card = new FuelCard();
+        card.setId(3L);
+        card.setCardNumber("7001");
+        card.setBalanceLitres(5.0);
+        card.setActive(true);
+        FuelCardService cardService = mock(FuelCardService.class);
+        when(cardService.findActiveCard(CardHolderType.VEHICLE, 7L)).thenReturn(card);
+        when(cardService.credit(card, 30.0)).thenAnswer(i -> {
+            card.setBalanceLitres(card.getBalanceLitres() + 30.0);
+            return card;
+        });
+        when(cards.findById(3L)).thenReturn(Optional.of(card));
+        FuelTransaction[] saved = new FuelTransaction[1];
+        when(transactions.save(any())).thenAnswer(i -> saved[0] = i.getArgument(0));
+
+        FuelApprovalService service = new FuelApprovalService(requests, transactions, approvals, allocations, cardService, cards, vehicles, mock(NotificationService.class));
+        service.decide(1L, true, false, "HR Manager", null);
+        assertEquals(5.0, card.getBalanceLitres());
+        assertEquals(Boolean.FALSE, saved[0].getLoaded());
+
+        // the vehicle can't come back off a card the fuel was never put on
+        saved[0].setId(9L);
+        when(transactions.findFirstByRequestIdOrderByIdDesc(1L)).thenReturn(Optional.of(saved[0]));
+        when(transactions.findById(9L)).thenReturn(Optional.of(saved[0]));
+        assertThrows(IllegalStateException.class, () -> allocationService.returnVehicle(1L, "Admin", 10, 100));
+
+        service.markLoaded(9L, "IT Admin");
+        assertEquals(35.0, card.getBalanceLitres());
+        assertEquals("IT Admin", saved[0].getLoadedBy());
+        assertThrows(IllegalStateException.class, () -> service.markLoaded(9L, "IT Admin"));
+    }
+
+    @Test
+    void theVehicleAdminSetsTheFuelAndExtraNeedsAReason() {
         TransportRequestService service = new TransportRequestService(requests, null, new FuelCalculationService(), mock(NotificationService.class), approvals);
 
-        // external (300 km = 30 L): the calculation stands
+        // external (300 km = 30 L): the card already holds some, so only a top-up is loaded
         TransportRequest external = request(RequestStatus.VEHICLE_ALLOCATED);
         external.setDistanceKm(300.0);
-        assertThrows(IllegalArgumentException.class, () -> service.calculateFuel(1L, 10.0, null));
-        assertEquals(30.0, service.calculateFuel(1L, null, null).getFuelRequiredLitres());
+        assertEquals(10.0, service.calculateFuel(1L, 10.0, null).getFuelRequiredLitres());
 
         // local (40 km = 4 L): less is fine, more needs a reason
         TransportRequest local = request(RequestStatus.VEHICLE_ALLOCATED);
