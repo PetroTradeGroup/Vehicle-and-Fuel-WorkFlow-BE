@@ -6,9 +6,11 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import lombok.Data;
+import zw.co.petrotrade.workflow.fuel.FuelType;
 
 import java.time.LocalDate;
 
@@ -26,6 +28,10 @@ public class Vehicle {
     private String make;
 
     private String model;
+
+    // what it runs on; copied onto a request when the vehicle is allocated to it
+    @ManyToOne
+    private FuelType fuelType;
 
     @Enumerated(EnumType.STRING)
     private VehicleStatus status;

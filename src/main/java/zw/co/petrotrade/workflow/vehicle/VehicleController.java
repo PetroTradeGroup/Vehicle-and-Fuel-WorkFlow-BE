@@ -25,7 +25,7 @@ public class VehicleController {
         return VehicleResponse.from(service.create(request));
     }
 
-    // no params: every vehicle, as before. ?q=aaz&status=AVAILABLE for the allocation picker (first 50 matches)
+    // no params: every vehicle, as before. ?q=aaz&status=AVAILABLE searches the whole fleet
     @GetMapping
     public List<VehicleResponse> list(
             @RequestParam(required = false) String q,

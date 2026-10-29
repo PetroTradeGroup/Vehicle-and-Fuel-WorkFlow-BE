@@ -1,5 +1,6 @@
 package zw.co.petrotrade.workflow.vehicle.dto;
 
+import zw.co.petrotrade.workflow.fuel.dto.FuelTypeResponse;
 import zw.co.petrotrade.workflow.vehicle.ServiceStatus;
 import zw.co.petrotrade.workflow.vehicle.Vehicle;
 import zw.co.petrotrade.workflow.vehicle.VehicleStatus;
@@ -11,6 +12,7 @@ public record VehicleResponse(
         String registrationNumber,
         String make,
         String model,
+        FuelTypeResponse fuelType,
         VehicleStatus status,
         Double odometerKm,
         Double lastServiceOdometerKm,
@@ -24,6 +26,7 @@ public record VehicleResponse(
                 vehicle.getRegistrationNumber(),
                 vehicle.getMake(),
                 vehicle.getModel(),
+                FuelTypeResponse.from(vehicle.getFuelType()),
                 vehicle.getStatus(),
                 vehicle.getOdometerKm(),
                 vehicle.getLastServiceOdometerKm(),

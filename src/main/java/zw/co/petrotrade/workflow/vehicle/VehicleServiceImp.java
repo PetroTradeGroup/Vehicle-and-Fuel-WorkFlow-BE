@@ -1,10 +1,10 @@
 package zw.co.petrotrade.workflow.vehicle;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import zw.co.petrotrade.workflow.fuel.CardHolderType;
 import zw.co.petrotrade.workflow.fuel.FuelCardRepository;
+import zw.co.petrotrade.workflow.fuel.FuelTypeRepository;
 import zw.co.petrotrade.workflow.vehicle.dto.VehicleRequest;
 import zw.co.petrotrade.workflow.vehicle.dto.VehicleServiceRequest;
 
@@ -17,6 +17,7 @@ public class VehicleServiceImp implements VehicleService {
 
     private final VehicleRepository repository;
     private final FuelCardRepository fuelCardRepository;
+    private final FuelTypeRepository fuelTypeRepository;
 
     public Vehicle create(VehicleRequest request) {
         if (repository.existsByRegistrationNumber(request.registrationNumber())) {
@@ -36,7 +37,7 @@ public class VehicleServiceImp implements VehicleService {
     }
 
     public List<Vehicle> search(String q, VehicleStatus status) {
-        return repository.search(q == null || q.isBlank() ? null : q.trim(), status, PageRequest.of(0, 50));
+        return repository.search(q == null ? "" : q.trim(), status);
     }
 
     public Vehicle findById(Long id) {
@@ -93,6 +94,7 @@ public class VehicleServiceImp implements VehicleService {
         vehicle.setRegistrationNumber(request.registrationNumber());
         vehicle.setMake(request.make());
         vehicle.setModel(request.model());
+        vehicle.setFuelType(request.fuelTypeId() == null ? null : fuelTypeRepository.findById(request.fuelTypeId()).orElseThrow());
         if (request.odometerKm() != null) {
             vehicle.setOdometerKm(request.odometerKm());
         }

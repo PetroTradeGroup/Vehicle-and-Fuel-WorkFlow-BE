@@ -8,6 +8,8 @@ public record VehicleRequest(
         @NotBlank String registrationNumber,
         @NotBlank String make,
         @NotBlank String model,
+        // optional: Diesel, Petrol, ... from the fuel types list; null clears it
+        Long fuelTypeId,
         VehicleStatus status,
         // optional: the current odometer reading, so the first trip starts from it
         @PositiveOrZero Double odometerKm,

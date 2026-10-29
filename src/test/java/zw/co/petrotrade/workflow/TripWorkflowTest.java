@@ -13,6 +13,7 @@ import zw.co.petrotrade.workflow.fuel.FuelCardRepository;
 import zw.co.petrotrade.workflow.fuel.FuelCardService;
 import zw.co.petrotrade.workflow.fuel.FuelTransaction;
 import zw.co.petrotrade.workflow.fuel.FuelTransactionRepository;
+import zw.co.petrotrade.workflow.fuel.FuelType;
 import zw.co.petrotrade.workflow.notification.NotificationService;
 import zw.co.petrotrade.workflow.transport.RequestStatus;
 import zw.co.petrotrade.workflow.transport.TransportRequest;
@@ -101,6 +102,22 @@ class TripWorkflowTest {
 
         request.setStatus(RequestStatus.FUEL_APPROVED);
         assertThrows(IllegalStateException.class, () -> allocationService.undoAllocation(1L));
+    }
+
+    @Test
+    void theTripTakesTheAllocatedVehiclesFuelType() {
+        TransportRequest request = request(RequestStatus.APPROVED_HOD);
+        Vehicle car = vehicle(1_000.0);
+        FuelType diesel = new FuelType();
+        diesel.setName("Diesel");
+        car.setFuelType(diesel);
+
+        VehicleAllocation allocation = allocationService.allocate(1L, 7L, "Admin", null);
+        assertSame(diesel, request.getFuelType());
+
+        when(allocations.findByRequestId(1L)).thenReturn(Optional.of(allocation));
+        allocationService.undoAllocation(1L);
+        assertNull(request.getFuelType());
     }
 
     @Test

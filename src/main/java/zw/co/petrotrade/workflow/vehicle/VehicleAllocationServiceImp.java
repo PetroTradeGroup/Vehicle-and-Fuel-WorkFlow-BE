@@ -69,6 +69,10 @@ public class VehicleAllocationServiceImp implements VehicleAllocationService {
         allocation.setAllocationDate(LocalDateTime.now());
         allocation.setOdometerOutKm(odometerOut);
 
+        // the trip runs on what this vehicle takes; vehicles with no fuel type set leave the request's as it was
+        if (vehicle.getFuelType() != null) {
+            request.setFuelType(vehicle.getFuelType());
+        }
         request.setStatus(RequestStatus.VEHICLE_ALLOCATED);
         requestRepository.save(request);
         notifications.notifyUser(request.getDriverId(), "Vehicle allocated - Request #" + requestId,
@@ -102,7 +106,15 @@ public class VehicleAllocationServiceImp implements VehicleAllocationService {
         allocationRepository.delete(allocation);
 
         TransportRequestService.clearFuelCalculation(request);
+        // the fuel type came from that vehicle; the next one brings its own
+        if (vehicle.getFuelType() != null) {
+            request.setFuelType(null);
+        }
         request.setStatus(RequestStatus.APPROVED_HOD);
+        notifications.notifyUser(request.getDriverId(), "Vehicle changed - Request #" + requestId,
+                vehicle.getRegistrationNumber() + " is no longer allocated to your trip to " + request.getDestination()
+                        + ". The vehicle admin is choosing another vehicle.\n",
+                NotificationService.requestLink(requestId));
         return requestRepository.save(request);
     }
 
@@ -160,6 +172,10 @@ public class VehicleAllocationServiceImp implements VehicleAllocationService {
 
         request.setStatus(RequestStatus.COMPLETED);
         requestRepository.save(request);
+        notifications.notifyUser(request.getDriverId(), "Trip completed - Request #" + requestId,
+                vehicle.getRegistrationNumber() + " was returned at " + Math.round(odometerInKm) + " km. Your trip to "
+                        + request.getDestination() + " is closed.\n",
+                NotificationService.requestLink(requestId));
 
         return allocationRepository.save(allocation);
     }

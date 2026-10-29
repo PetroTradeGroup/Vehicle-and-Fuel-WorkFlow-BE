@@ -2,6 +2,7 @@ package zw.co.petrotrade.workflow.report;
 
 import org.junit.jupiter.api.Test;
 import zw.co.petrotrade.workflow.fuel.FuelCardRepository;
+import zw.co.petrotrade.workflow.fuel.FuelTypeRepository;
 import zw.co.petrotrade.workflow.transport.RequestStatus;
 import zw.co.petrotrade.workflow.transport.TransportRequest;
 import zw.co.petrotrade.workflow.vehicle.ServiceStatus;
@@ -38,7 +39,7 @@ class FleetInsightsTest {
         when(repository.save(any())).thenAnswer(i -> i.getArgument(0));
         Vehicle car = vehicle(15_200.0, 10_000.0);
         when(repository.findById(7L)).thenReturn(Optional.of(car));
-        VehicleServiceImp vehicles = new VehicleServiceImp(repository, mock(FuelCardRepository.class));
+        VehicleServiceImp vehicles = new VehicleServiceImp(repository, mock(FuelCardRepository.class), mock(FuelTypeRepository.class));
 
         assertThrows(IllegalArgumentException.class, () -> vehicles.recordService(7L, new VehicleServiceRequest(15_000.0, null)));
 

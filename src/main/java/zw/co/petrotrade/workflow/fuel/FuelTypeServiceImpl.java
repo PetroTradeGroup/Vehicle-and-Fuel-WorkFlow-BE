@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import zw.co.petrotrade.workflow.fuel.dto.FuelTypeRequest;
 import zw.co.petrotrade.workflow.transport.TransportRequestRepository;
+import zw.co.petrotrade.workflow.vehicle.VehicleRepository;
 
 import java.util.List;
 
@@ -13,6 +14,7 @@ public class FuelTypeServiceImpl implements FuelTypeService {
 
     private final FuelTypeRepository repository;
     private final TransportRequestRepository transportRequestRepository;
+    private final VehicleRepository vehicleRepository;
 
     public FuelType create(FuelTypeRequest request) {
         if (repository.existsByCode(request.code())) {
@@ -44,6 +46,9 @@ public class FuelTypeServiceImpl implements FuelTypeService {
         FuelType fuelType = findById(id);
         if (transportRequestRepository.existsByFuelType(fuelType)) {
             throw new IllegalStateException("Fuel type " + fuelType.getCode() + " is used by transport requests");
+        }
+        if (vehicleRepository.existsByFuelType(fuelType)) {
+            throw new IllegalStateException("Fuel type " + fuelType.getCode() + " is set on vehicles. Change those vehicles first.");
         }
         repository.delete(fuelType);
     }

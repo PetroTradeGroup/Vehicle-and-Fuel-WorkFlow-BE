@@ -48,6 +48,10 @@ public class TransportRequestService {
                             + "Purpose: " + saved.getPurpose() + "\n",
                     NotificationService.requestLink(saved.getId()));
         }
+        notificationService.notifyUser(saved.getDriverId(), "Request #" + saved.getId() + " submitted",
+                "Your transport request was received.\n" + trip
+                        + (skipReason != null ? skipReason + "\n" : "It is waiting for your head of department's approval.\n"),
+                NotificationService.requestLink(saved.getId()));
         return saved;
     }
 
@@ -93,6 +97,10 @@ public class TransportRequestService {
         repository.save(request);
 
         notificationService.notifyFuelRequestSubmitted(request);
+        notificationService.notifyUser(request.getDriverId(), "Fuel set - Request #" + requestId,
+                (load <= 0 ? "No fuel is needed for your trip, the vehicle has enough." : "Fuel for your trip is set at " + load + " litres.")
+                        + "\nIt is now waiting for HR & Admin approval.\n",
+                NotificationService.requestLink(requestId));
 
         return request;
     }
@@ -106,6 +114,9 @@ public class TransportRequestService {
         }
         clearFuelCalculation(request);
         request.setStatus(RequestStatus.VEHICLE_ALLOCATED);
+        notificationService.notifyUser(request.getDriverId(), "Fuel being recalculated - Request #" + requestId,
+                "The vehicle admin is correcting the fuel for your trip to " + request.getDestination() + ". You'll be told the new amount.\n",
+                NotificationService.requestLink(requestId));
         return repository.save(request);
     }
 
