@@ -91,7 +91,8 @@ public class StationReportService {
                     t.getId(), stationName.get(t.getStationId()), t.getRequestedAt(), t.getLitres(), t.getReason(), t.getRequestedBy(),
                     STATUS_LABEL.get(t.getStatus()),
                     decision == null ? null : decision.getApprover(),
-                    decision == null ? null : decision.getApprovalDate());
+                    decision == null ? null : decision.getApprovalDate(),
+                    decision == null ? null : decision.getComments());
         }).toList();
     }
 

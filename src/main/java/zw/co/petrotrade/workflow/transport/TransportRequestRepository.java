@@ -8,10 +8,13 @@ import zw.co.petrotrade.workflow.fuel.FuelType;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public interface TransportRequestRepository extends JpaRepository<TransportRequest, Long> {
 
     boolean existsByFuelType(FuelType fuelType);
+
+    Optional<TransportRequest> findFirstByDriverIdAndStatusNotInOrderByIdDesc(Long driverId, Collection<RequestStatus> statuses);
 
     List<TransportRequest> findByStatusAndRequiredToBeforeOrderByRequiredTo(RequestStatus status, LocalDate date);
 

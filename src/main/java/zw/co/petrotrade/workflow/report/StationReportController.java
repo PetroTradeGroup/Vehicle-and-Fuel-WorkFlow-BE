@@ -43,7 +43,8 @@ public class StationReportController {
                 new TableExport.Col<>("Reason", 34, StationReport.Row::reason),
                 new TableExport.Col<>("Status", 16, StationReport.Row::status),
                 new TableExport.Col<>("Decided by", 20, StationReport.Row::decidedBy),
-                new TableExport.Col<>("Decided", 17, StationReport.Row::decidedAt)));
+                new TableExport.Col<>("Decided", 17, StationReport.Row::decidedAt),
+                new TableExport.Col<>("Notes", 30, StationReport.Row::comments)));
         if (withStation) {
             cols.add(1, new TableExport.Col<>("Station", 22, StationReport.Row::station));
         }
@@ -86,7 +87,7 @@ public class StationReportController {
         StationReport.Totals t = report.totals();
         String summary = t.requests() + " top-ups   ·   " + format(t.litresRequested()) + " L requested   ·   "
                 + format(t.litresReceived()) + " L received   ·   " + t.pending() + " pending   ·   " + t.rejected() + " rejected";
-        byte[] file = TableExport.pdf(title(report), meta(report), summary, COLUMNS, new float[]{4, 9, 10, 5, 20, 7, 10, 9},
+        byte[] file = TableExport.pdf(title(report), meta(report), summary, COLUMNS, new float[]{4, 9, 10, 5, 14, 7, 10, 9, 12},
                 report.rows(), totalLabel(report), totals(report));
         return download(file, MediaType.APPLICATION_PDF, fileName(report, "pdf"));
     }

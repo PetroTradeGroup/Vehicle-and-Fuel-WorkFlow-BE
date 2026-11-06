@@ -31,6 +31,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 // The trip rules: local/external, odometer readings, and HR & Admin approving once at the end
@@ -252,6 +253,22 @@ class TripWorkflowTest {
         assertEquals(10.0, extra.getFuelRequiredLitres());
         assertEquals(4.0, extra.getFuelSuggestedLitres());
         assertEquals("Generator run at the site", extra.getFuelOverReason());
+    }
+
+    @Test
+    void aNewTripWaitsUntilTheLastOneIsFinished() {
+        TransportRequestService service = new TransportRequestService(requests, null, new FuelCalculationService(), mock(NotificationService.class), approvals);
+        TransportRequest onTrip = request(RequestStatus.FUEL_APPROVED);
+        when(requests.findFirstByDriverIdAndStatusNotInOrderByIdDesc(eq(5L), any())).thenReturn(Optional.of(onTrip));
+
+        TransportRequest next = new TransportRequest();
+        next.setDriverId(5L);
+        IllegalStateException blocked = assertThrows(IllegalStateException.class, () -> service.create(next));
+        assertTrue(blocked.getMessage().contains("Request #1 is still out on the trip"), blocked.getMessage());
+
+        // completed and rejected requests don't count as open
+        assertTrue(TransportRequestService.CLOSED.containsAll(java.util.List.of(RequestStatus.COMPLETED, RequestStatus.REJECTED_HOD, RequestStatus.REJECTED_HR_ADMIN)));
+        assertFalse(TransportRequestService.CLOSED.contains(RequestStatus.FUEL_APPROVED));
     }
 
     private TransportRequest request(RequestStatus status) {

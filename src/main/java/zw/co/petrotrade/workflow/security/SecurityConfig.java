@@ -36,8 +36,8 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         String[] anyAppRole = Arrays.stream(Role.values()).map(Role::name).toArray(String[]::new);
-        // everyone except station admins and regional reps, who only get the station endpoints
-        String[] staffRoles = Arrays.stream(Role.values()).filter(r -> r != Role.STATION_ADMIN && r != Role.REGIONAL_REP).map(Role::name).toArray(String[]::new);
+        // everyone except station admins, who only get the station endpoints; regional reps also request trips
+        String[] staffRoles = Arrays.stream(Role.values()).filter(r -> r != Role.STATION_ADMIN).map(Role::name).toArray(String[]::new);
         // vehicle admins are kept out of stations and their top-ups
         String[] topUpRoles = Arrays.stream(Role.values()).filter(r -> r != Role.VEHICLE_ADMIN).map(Role::name).toArray(String[]::new);
         http
@@ -51,7 +51,7 @@ public class SecurityConfig {
                         // everyone with a role has their own notifications
                         .requestMatchers("/api/notifications/**").hasAnyRole(anyAppRole)
                         .requestMatchers("/api/station-top-ups/**").hasAnyRole(topUpRoles)
-                        .requestMatchers("/api/reports/top-ups/**").hasAnyRole("HR_ADMIN_MANAGER", "SYSTEM_ADMIN")
+                        .requestMatchers("/api/reports/top-ups/**").hasAnyRole("HR_ADMIN_MANAGER", "SYSTEM_ADMIN", "REGIONAL_REP", "RETAIL_MANAGER")
                         // station admins: their station's page and report (scoped further in the controllers)
                         .requestMatchers("/api/stations/**").hasAnyRole(topUpRoles)
                         // a help desk account with no vehicle role gets nothing else

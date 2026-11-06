@@ -23,7 +23,9 @@ public record StationReport(
             String requestedBy,
             String status,
             String decidedBy,
-            LocalDateTime decidedAt) {
+            LocalDateTime decidedAt,
+            // the approver's note, e.g. why it was rejected
+            String comments) {
     }
 
     public record Totals(int requests, double litresRequested, double litresReceived, long pending, long rejected) {

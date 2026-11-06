@@ -29,6 +29,9 @@ import java.util.Map;
 @PreAuthorize("hasAnyRole('HR_ADMIN_MANAGER', 'VEHICLE_ADMIN', 'SYSTEM_ADMIN')")
 public class ReportController {
 
+    // the top-up approvers see the top-ups report too (not the trip reports)
+    private static final String TOP_UP_REPORT_ROLES = "hasAnyRole('HR_ADMIN_MANAGER', 'SYSTEM_ADMIN', 'REGIONAL_REP', 'RETAIL_MANAGER')";
+
     private static final MediaType XLSX = MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
 
     private static final List<TableExport.Col<StationReport.Row>> TOP_UP_COLUMNS = StationReportController.columns(true);
@@ -134,11 +137,13 @@ public class ReportController {
     }
 
     // station top-ups across stations; a station admin uses their own station's page instead
+    @PreAuthorize(TOP_UP_REPORT_ROLES)
     @GetMapping("/top-ups")
     public TopUpReport topUps(TopUpReport.Filter filter) {
         return stationReports.allStations(filter);
     }
 
+    @PreAuthorize(TOP_UP_REPORT_ROLES)
     @GetMapping("/top-ups/excel")
     public ResponseEntity<byte[]> topUpsExcel(TopUpReport.Filter filter) {
         TopUpReport report = stationReports.allStations(filter);
@@ -147,6 +152,7 @@ public class ReportController {
         return download(file, XLSX, topUpFileName(report, "xlsx"));
     }
 
+    @PreAuthorize(TOP_UP_REPORT_ROLES)
     @GetMapping("/top-ups/pdf")
     public ResponseEntity<byte[]> topUpsPdf(TopUpReport.Filter filter) {
         TopUpReport report = stationReports.allStations(filter);
@@ -154,7 +160,7 @@ public class ReportController {
         String summary = t.requests() + " top-ups   ·   " + TableExport.format(t.litresRequested()) + " L requested   ·   "
                 + TableExport.format(t.litresReceived()) + " L received   ·   " + t.pending() + " pending   ·   " + t.rejected() + " rejected";
         byte[] file = TableExport.pdf("Station top-ups report", topUpMeta(report), summary, TOP_UP_COLUMNS,
-                new float[]{4, 11, 9, 9, 5, 17, 7, 9, 9}, report.rows(),
+                new float[]{4, 11, 9, 9, 5, 12, 7, 9, 9, 10}, report.rows(),
                 "Total: " + t.requests() + " top-ups", Map.of("Litres", t.litresReceived()));
         return download(file, MediaType.APPLICATION_PDF, topUpFileName(report, "pdf"));
     }

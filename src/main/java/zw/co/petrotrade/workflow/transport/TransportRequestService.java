@@ -12,6 +12,9 @@ import zw.co.petrotrade.workflow.user.Role;
 import zw.co.petrotrade.workflow.user.User;
 import zw.co.petrotrade.workflow.user.UserRepository;
 
+import java.util.EnumSet;
+import java.util.Set;
+
 @Service
 @RequiredArgsConstructor
 public class TransportRequestService {
@@ -22,7 +25,17 @@ public class TransportRequestService {
     private final NotificationService notificationService;
     private final ApprovalRepository approvalRepository;
 
+    // a request is finished once it's completed or rejected; anything else is still in progress
+    public static final Set<RequestStatus> CLOSED = EnumSet.of(RequestStatus.COMPLETED,
+            RequestStatus.REJECTED_HOD, RequestStatus.REJECTED_HR_ADMIN, RequestStatus.FUEL_REJECTED);
+
     public TransportRequest create(TransportRequest request) {
+
+        // one trip at a time: the last one has to be returned (or rejected) before the next is requested
+        repository.findFirstByDriverIdAndStatusNotInOrderByIdDesc(request.getDriverId(), CLOSED).ifPresent(open -> {
+            throw new IllegalStateException("Request #" + open.getId() + " is still " + open.getStatus().description()
+                    + ". A new trip can be requested once that one is completed.");
+        });
 
         User driver = userRepository.findById(request.getDriverId()).orElseThrow();
         request.setDriverName(driver.getFullName());

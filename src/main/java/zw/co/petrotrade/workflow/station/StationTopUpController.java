@@ -54,6 +54,9 @@ public class StationTopUpController {
     @PostMapping("/{id}/decision")
     public StationTopUpResponse decide(@PathVariable Long id, @Valid @RequestBody TopUpDecisionRequest request) {
         // a regional rep or the retail manager first, then HR & Admin
+        if (!request.approved() && (request.comments() == null || request.comments().isBlank())) {
+            throw new IllegalArgumentException("Add a note saying why the top-up is rejected.");
+        }
         TopUpStatus stage = service.findById(id).getStatus();
         if (stage == TopUpStatus.PENDING_FIRST_APPROVAL) {
             currentUser.require(Role.REGIONAL_REP, Role.RETAIL_MANAGER);

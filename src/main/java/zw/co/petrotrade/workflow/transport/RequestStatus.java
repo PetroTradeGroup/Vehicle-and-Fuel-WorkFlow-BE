@@ -23,6 +23,10 @@ public enum RequestStatus {
         this.description = description;
     }
 
+    public String description() {
+        return description;
+    }
+
     // e.g. "This request is now waiting for HR & Admin. Refresh to see the latest."
     public String alreadyMovedOn() {
         return "This request is now " + description + ". Refresh to see the latest.";
