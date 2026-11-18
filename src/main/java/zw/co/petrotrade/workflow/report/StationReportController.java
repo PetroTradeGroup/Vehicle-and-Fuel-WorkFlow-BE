@@ -40,6 +40,9 @@ public class StationReportController {
                 new TableExport.Col<>("Requested", 17, StationReport.Row::requestedAt),
                 new TableExport.Col<>("Requested by", 20, StationReport.Row::requestedBy),
                 new TableExport.Col<>("Litres", 10, StationReport.Row::litres),
+                new TableExport.Col<>("Fuel type", 12, StationReport.Row::fuelType),
+                new TableExport.Col<>("For", 12, StationReport.Row::purpose),
+                new TableExport.Col<>("Generator hours", 12, StationReport.Row::generatorHours),
                 new TableExport.Col<>("Reason", 34, StationReport.Row::reason),
                 new TableExport.Col<>("Status", 16, StationReport.Row::status),
                 new TableExport.Col<>("Decided by", 20, StationReport.Row::decidedBy),
@@ -87,7 +90,7 @@ public class StationReportController {
         StationReport.Totals t = report.totals();
         String summary = t.requests() + " top-ups   ·   " + format(t.litresRequested()) + " L requested   ·   "
                 + format(t.litresReceived()) + " L received   ·   " + t.pending() + " pending   ·   " + t.rejected() + " rejected";
-        byte[] file = TableExport.pdf(title(report), meta(report), summary, COLUMNS, new float[]{4, 9, 10, 5, 14, 7, 10, 9, 12},
+        byte[] file = TableExport.pdf(title(report), meta(report), summary, COLUMNS, new float[]{4, 8, 9, 5, 6, 6, 6, 9, 7, 7, 6, 7},
                 report.rows(), totalLabel(report), totals(report));
         return download(file, MediaType.APPLICATION_PDF, fileName(report, "pdf"));
     }

@@ -1,11 +1,13 @@
 package zw.co.petrotrade.workflow.station;
 
-// a regional rep or the retail manager approves first, then HR & Admin, whose approval credits the card
+// a regional rep or the retail manager approves first, then HR & Admin; it's completed once IT loads the card
 public enum TopUpStatus {
 
     PENDING_FIRST_APPROVAL,
     // awaiting HR & Admin
     PENDING_APPROVAL,
+    // HR & Admin approved; waiting for IT to load the fuel onto the card
+    APPROVED,
     COMPLETED,
     REJECTED;
 

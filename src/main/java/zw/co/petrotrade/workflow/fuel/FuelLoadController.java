@@ -7,6 +7,10 @@ import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import zw.co.petrotrade.workflow.security.CurrentUser;
+import zw.co.petrotrade.workflow.station.Station;
+import zw.co.petrotrade.workflow.station.StationRepository;
+import zw.co.petrotrade.workflow.station.StationTopUp;
+import zw.co.petrotrade.workflow.station.StationTopUpRepository;
 import zw.co.petrotrade.workflow.transport.TransportRequest;
 import zw.co.petrotrade.workflow.transport.TransportRequestRepository;
 import zw.co.petrotrade.workflow.user.User;
@@ -21,7 +25,7 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-// IT's queue: trips HR & Admin approved whose fuel still has to be put on the card
+// IT's queue: trips and station top-ups HR & Admin approved whose fuel still has to be put on the card
 @RestController
 @RequestMapping("/api/fuel-loads")
 @RequiredArgsConstructor
@@ -34,10 +38,14 @@ public class FuelLoadController {
     private final UserRepository users;
     private final VehicleRepository vehicles;
     private final FuelCardRepository cards;
+    private final StationTopUpRepository topUps;
+    private final StationRepository stations;
     private final CurrentUser currentUser;
 
+    // a station top-up has stationTopUpId instead of requestId; its station is the destination and
+    // driverName is whoever requested it
     public record Row(
-            Long id, Long requestId, String destination, String driverName, String vehicleRegistration,
+            Long id, Long requestId, Long stationTopUpId, String destination, String driverName, String vehicleRegistration,
             String cardNumber, CardHolderType cardHolderType, Double litres, String fuelType,
             LocalDateTime approvedAt, boolean loaded, String loadedBy, LocalDateTime loadedAt) {}
 
@@ -50,7 +58,7 @@ public class FuelLoadController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Sort sort = loaded ? Sort.by(Sort.Direction.DESC, "id") : Sort.by(Sort.Direction.ASC, "id");
-        Page<FuelTransaction> found = transactions.findTripFuel(
+        Page<FuelTransaction> found = transactions.findFuelToLoad(
                 loaded, PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100), sort));
 
         List<FuelTransaction> list = found.getContent();
@@ -58,13 +66,28 @@ public class FuelLoadController {
         Map<Long, User> userById = byId(users.findAllById(ids(list, FuelTransaction::getDriverId)), User::getId);
         Map<Long, Vehicle> vehicleById = byId(vehicles.findAllById(ids(list, FuelTransaction::getVehicleId)), Vehicle::getId);
         Map<Long, FuelCard> cardById = byId(cards.findAllById(ids(list, FuelTransaction::getFuelCardId)), FuelCard::getId);
+        Map<Long, StationTopUp> topUpById = byId(topUps.findAllById(ids(list, FuelTransaction::getStationTopUpId)), StationTopUp::getId);
+        Map<Long, Station> stationById = byId(stations.findAllById(
+                topUpById.values().stream().map(StationTopUp::getStationId).distinct().toList()), Station::getId);
 
         List<Row> rows = list.stream().map(t -> {
+            StationTopUp topUp = topUpById.get(t.getStationTopUpId());
+            if (topUp != null) {
+                Station station = stationById.get(topUp.getStationId());
+                FuelCard card = cardById.get(t.getFuelCardId());
+                return new Row(t.getId(), null, topUp.getId(),
+                        station == null ? "Station #" + topUp.getStationId() : station.getName(),
+                        topUp.getRequestedBy(), null,
+                        card == null ? null : card.getCardNumber(),
+                        card == null ? null : card.getHolderType(),
+                        t.getAllocatedLitres(), topUp.getFuelType() == null ? null : topUp.getFuelType().getName(), t.getTransactionDate(),
+                        !Boolean.FALSE.equals(t.getLoaded()), t.getLoadedBy(), t.getLoadedAt());
+            }
             TransportRequest request = requestById.get(t.getRequestId());
             User driver = userById.get(t.getDriverId());
             Vehicle vehicle = vehicleById.get(t.getVehicleId());
             FuelCard card = cardById.get(t.getFuelCardId());
-            return new Row(t.getId(), t.getRequestId(),
+            return new Row(t.getId(), t.getRequestId(), null,
                     request == null ? null : request.getDestination(),
                     driver == null ? null : driver.getFullName(),
                     vehicle == null ? null : vehicle.getRegistrationNumber(),

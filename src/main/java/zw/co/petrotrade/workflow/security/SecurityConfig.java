@@ -3,6 +3,7 @@ package zw.co.petrotrade.workflow.security;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import jakarta.servlet.http.HttpServletResponse;
@@ -38,8 +39,8 @@ public class SecurityConfig {
         String[] anyAppRole = Arrays.stream(Role.values()).map(Role::name).toArray(String[]::new);
         // everyone except station admins, who only get the station endpoints; regional reps also request trips
         String[] staffRoles = Arrays.stream(Role.values()).filter(r -> r != Role.STATION_ADMIN).map(Role::name).toArray(String[]::new);
-        // vehicle admins are kept out of stations and their top-ups
-        String[] topUpRoles = Arrays.stream(Role.values()).filter(r -> r != Role.VEHICLE_ADMIN).map(Role::name).toArray(String[]::new);
+        // only these roles see stations and their top-ups
+        String[] topUpRoles = {"STATION_ADMIN", "REGIONAL_REP", "RETAIL_MANAGER", "HR_ADMIN_MANAGER", "SYSTEM_ADMIN"};
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(Customizer.withDefaults())
@@ -54,6 +55,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/reports/top-ups/**").hasAnyRole("HR_ADMIN_MANAGER", "SYSTEM_ADMIN", "REGIONAL_REP", "RETAIL_MANAGER")
                         // station admins: their station's page and report (scoped further in the controllers)
                         .requestMatchers("/api/stations/**").hasAnyRole(topUpRoles)
+                        // station admins pick the fuel type when requesting a top-up
+                        .requestMatchers(HttpMethod.GET, "/api/fuel-types").hasAnyRole(anyAppRole)
                         // a help desk account with no vehicle role gets nothing else
                         .requestMatchers("/api/**").hasAnyRole(staffRoles)
                         .anyRequest().authenticated())

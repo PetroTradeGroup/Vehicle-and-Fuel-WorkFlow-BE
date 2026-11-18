@@ -19,6 +19,10 @@ public record StationReport(
             String station,
             LocalDateTime requestedAt,
             Double litres,
+            String fuelType,
+            // Generator, Grass cutter or Other
+            String purpose,
+            Double generatorHours,
             String reason,
             String requestedBy,
             String status,

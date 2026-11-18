@@ -51,11 +51,13 @@ public class TransportRequestController {
         return TransportRequestResponse.from(service.create(request.toEntity(driverId, me.getFullName(), fuelType)));
     }
 
-    // both filters optional, e.g. ?status=PENDING_HOD for an approval inbox or ?driverId=3 for "my requests"
+    // all filters optional, e.g. ?status=PENDING_HOD for an approval inbox, ?driverId=3 for "my requests",
+    // ?q=external harare >100 to search (see RequestSearch)
     @GetMapping
     public List<TransportRequestResponse> list(
             @RequestParam(required = false) RequestStatus status,
-            @RequestParam(required = false) Long driverId) {
+            @RequestParam(required = false) Long driverId,
+            @RequestParam(required = false) String q) {
         TransportRequest probe = new TransportRequest();
         probe.setStatus(status);
         probe.setDriverId(driverId);
@@ -67,8 +69,9 @@ public class TransportRequestController {
                 probe.setDriverId(me.getId());
             }
         }
+        // ponytail: searches the caller's already-scoped requests in memory; move to a JPA query if they reach the tens of thousands
         return requestRepository.findAll(Example.of(probe), Sort.by(Sort.Direction.DESC, "id"))
-                .stream().map(TransportRequestResponse::from).toList();
+                .stream().filter(r -> RequestSearch.matches(r, q)).map(TransportRequestResponse::from).toList();
     }
 
     @PostMapping("/{id}/calculate-fuel")

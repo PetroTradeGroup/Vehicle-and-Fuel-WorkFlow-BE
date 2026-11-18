@@ -26,16 +26,13 @@ public class VehicleAllocation {
 
     private LocalDateTime returnDate;
 
-    // recorded on return: what the trip actually took
     private Double fuelUsedLitres;
 
     private Double distanceTravelledKm;
 
-    // odometer (km) when the vehicle went out and when it came back; travelled = in - out
     private Double odometerOutKm;
 
     private Double odometerInKm;
 
-    // the vehicle's reading before this allocation, put back if the allocation is undone
     private Double odometerBeforeKm;
 }

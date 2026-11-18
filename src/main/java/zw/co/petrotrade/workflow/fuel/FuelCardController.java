@@ -35,19 +35,28 @@ public class FuelCardController {
 
     @GetMapping
     public List<FuelCardResponse> list() {
-        boolean stations = seesStations();
-        return repository.findAll().stream()
-                .filter(c -> stations || c.getHolderType() != CardHolderType.STATION)
-                .map(FuelCardResponse::from).toList();
+        return repository.findAll().stream().filter(this::canSee).map(FuelCardResponse::from).toList();
     }
 
     @GetMapping("/{id}")
     public FuelCardResponse get(@PathVariable Long id) {
         FuelCard card = repository.findById(id).orElseThrow();
-        if (card.getHolderType() == CardHolderType.STATION && !seesStations()) {
-            throw new AccessDeniedException("You don't have permission to see station cards.");
+        if (!canSee(card)) {
+            throw new AccessDeniedException("You don't have permission to see this fuel card.");
         }
         return FuelCardResponse.from(card);
+    }
+
+    // fleet roles see vehicle and personal cards; station roles see station cards; everyone else nothing
+    private boolean canSee(FuelCard card) {
+        if (!seesFleet() && !seesStations()) {
+            throw new AccessDeniedException("You don't have permission to see fuel cards.");
+        }
+        return card.getHolderType() == CardHolderType.STATION ? seesStations() : seesFleet();
+    }
+
+    private boolean seesFleet() {
+        return currentUser.has(Role.HR_ADMIN_MANAGER, Role.VEHICLE_ADMIN, Role.SYSTEM_ADMIN);
     }
 
     @PutMapping("/{id}")
@@ -56,9 +65,9 @@ public class FuelCardController {
         return FuelCardResponse.from(fuelCardService.update(id, request));
     }
 
-    // vehicle admins see nothing about stations, unless they also oversee them
+    // same roles SecurityConfig lets into stations
     private boolean seesStations() {
-        return !currentUser.has(Role.VEHICLE_ADMIN) || currentUser.has(Role.HR_ADMIN_MANAGER, Role.SYSTEM_ADMIN);
+        return currentUser.has(Role.STATION_ADMIN, Role.REGIONAL_REP, Role.RETAIL_MANAGER, Role.HR_ADMIN_MANAGER, Role.SYSTEM_ADMIN);
     }
 
     @PostMapping("/approve-fuel")

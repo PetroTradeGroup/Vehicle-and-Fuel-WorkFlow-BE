@@ -15,6 +15,10 @@ import zw.co.petrotrade.workflow.fuel.FuelTransaction;
 import zw.co.petrotrade.workflow.fuel.FuelTransactionRepository;
 import zw.co.petrotrade.workflow.fuel.FuelType;
 import zw.co.petrotrade.workflow.notification.NotificationService;
+import zw.co.petrotrade.workflow.station.StationRepository;
+import zw.co.petrotrade.workflow.station.StationTopUp;
+import zw.co.petrotrade.workflow.station.StationTopUpRepository;
+import zw.co.petrotrade.workflow.station.TopUpStatus;
 import zw.co.petrotrade.workflow.transport.RequestStatus;
 import zw.co.petrotrade.workflow.transport.TransportRequest;
 import zw.co.petrotrade.workflow.transport.TransportRequestRepository;
@@ -165,7 +169,7 @@ class TripWorkflowTest {
         allocation.setVehicleId(7L);
         when(allocations.findByRequestId(1L)).thenReturn(Optional.of(allocation));
 
-        FuelApprovalService finalApproval = new FuelApprovalService(requests, transactions, approvals, allocations, null, cards, vehicles, mock(NotificationService.class));
+        FuelApprovalService finalApproval = new FuelApprovalService(requests, transactions, approvals, allocations, null, cards, vehicles, mock(NotificationService.class), null, null);
         Approval decision = finalApproval.decide(1L, false, false, "HR Manager", "Not needed");
 
         assertEquals(ApprovalLevel.HR_ADMIN, decision.getLevel());
@@ -184,7 +188,7 @@ class TripWorkflowTest {
         when(transactions.findFirstByRequestIdOrderByIdDesc(1L)).thenReturn(Optional.empty());
 
         // no card service: crediting a card would fail the test
-        new FuelApprovalService(requests, transactions, approvals, allocations, null, cards, vehicles, mock(NotificationService.class))
+        new FuelApprovalService(requests, transactions, approvals, allocations, null, cards, vehicles, mock(NotificationService.class), null, null)
                 .decide(1L, true, false, "HR Manager", null);
         assertEquals(RequestStatus.FUEL_APPROVED, request.getStatus());
         verify(transactions, never()).save(any());
@@ -217,7 +221,7 @@ class TripWorkflowTest {
         FuelTransaction[] saved = new FuelTransaction[1];
         when(transactions.save(any())).thenAnswer(i -> saved[0] = i.getArgument(0));
 
-        FuelApprovalService service = new FuelApprovalService(requests, transactions, approvals, allocations, cardService, cards, vehicles, mock(NotificationService.class));
+        FuelApprovalService service = new FuelApprovalService(requests, transactions, approvals, allocations, cardService, cards, vehicles, mock(NotificationService.class), null, null);
         service.decide(1L, true, false, "HR Manager", null);
         assertEquals(5.0, card.getBalanceLitres());
         assertEquals(Boolean.FALSE, saved[0].getLoaded());
@@ -232,6 +236,40 @@ class TripWorkflowTest {
         assertEquals(35.0, card.getBalanceLitres());
         assertEquals("IT Admin", saved[0].getLoadedBy());
         assertThrows(IllegalStateException.class, () -> service.markLoaded(9L, "IT Admin"));
+    }
+
+    @Test
+    void itLoadsAnApprovedStationTopUp() {
+        FuelCard card = new FuelCard();
+        card.setId(4L);
+        card.setBalanceLitres(0.0);
+        card.setActive(true);
+        FuelCardService cardService = mock(FuelCardService.class);
+        when(cardService.credit(card, 50.0)).thenAnswer(i -> {
+            card.setBalanceLitres(card.getBalanceLitres() + 50.0);
+            return card;
+        });
+        when(cards.findById(4L)).thenReturn(Optional.of(card));
+        FuelTransaction topUpFuel = new FuelTransaction();
+        topUpFuel.setStationTopUpId(2L);
+        topUpFuel.setFuelCardId(4L);
+        topUpFuel.setAllocatedLitres(50.0);
+        topUpFuel.setLoaded(false);
+        when(transactions.findById(8L)).thenReturn(Optional.of(topUpFuel));
+        StationTopUp topUp = new StationTopUp();
+        topUp.setId(2L);
+        topUp.setStationId(6L);
+        StationTopUpRepository topUps = mock(StationTopUpRepository.class);
+        when(topUps.findById(2L)).thenReturn(Optional.of(topUp));
+        NotificationService notifications = mock(NotificationService.class);
+
+        new FuelApprovalService(requests, transactions, approvals, allocations, cardService, cards, vehicles, notifications,
+                topUps, mock(StationRepository.class)).markLoaded(8L, "IT Admin");
+
+        assertEquals(50.0, card.getBalanceLitres());
+        assertEquals(Boolean.TRUE, topUpFuel.getLoaded());
+        assertEquals(TopUpStatus.COMPLETED, topUp.getStatus());
+        verify(notifications).notifyStationAdmins(eq(6L), any(), any(), any());
     }
 
     @Test

@@ -12,9 +12,9 @@ import java.util.Optional;
 public interface FuelTransactionRepository
         extends JpaRepository<FuelTransaction, Long> {
 
-    // trip fuel only; rows from before loading was tracked (loaded is null) count as loaded
-    @Query("select t from FuelTransaction t where t.requestId is not null and coalesce(t.loaded, true) = :loaded")
-    Page<FuelTransaction> findTripFuel(boolean loaded, Pageable pageable);
+    // trip and station top-up fuel; rows from before loading was tracked (loaded is null) count as loaded
+    @Query("select t from FuelTransaction t where (t.requestId is not null or t.stationTopUpId is not null) and coalesce(t.loaded, true) = :loaded")
+    Page<FuelTransaction> findFuelToLoad(boolean loaded, Pageable pageable);
 
     List<FuelTransaction> findByRequestIdIn(Collection<Long> requestIds);
 

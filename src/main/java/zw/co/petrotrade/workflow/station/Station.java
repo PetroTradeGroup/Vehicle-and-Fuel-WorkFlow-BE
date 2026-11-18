@@ -16,4 +16,7 @@ public class Station {
     private String name;
 
     private String location;
+
+    // the generator's running hours at the last top-up request; like an odometer it only goes up
+    private Double generatorHours;
 }

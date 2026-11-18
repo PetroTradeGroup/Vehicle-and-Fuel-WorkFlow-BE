@@ -8,6 +8,11 @@ import zw.co.petrotrade.workflow.approval.ApprovalLevel;
 import zw.co.petrotrade.workflow.approval.ApprovalRepository;
 import zw.co.petrotrade.workflow.approval.ApprovalSubject;
 import zw.co.petrotrade.workflow.notification.NotificationService;
+import zw.co.petrotrade.workflow.station.Station;
+import zw.co.petrotrade.workflow.station.StationRepository;
+import zw.co.petrotrade.workflow.station.StationTopUp;
+import zw.co.petrotrade.workflow.station.StationTopUpRepository;
+import zw.co.petrotrade.workflow.station.TopUpStatus;
 import zw.co.petrotrade.workflow.transport.RequestStatus;
 import zw.co.petrotrade.workflow.transport.TransportRequest;
 import zw.co.petrotrade.workflow.transport.TransportRequestRepository;
@@ -32,6 +37,8 @@ public class FuelApprovalService {
     private final FuelCardRepository fuelCardRepository;
     private final VehicleRepository vehicleRepository;
     private final NotificationService notifications;
+    private final StationTopUpRepository stationTopUpRepository;
+    private final StationRepository stationRepository;
 
     @Transactional
     public Approval decide(
@@ -100,7 +107,7 @@ public class FuelApprovalService {
     @Transactional
     public FuelTransaction markLoaded(Long transactionId, String loadedBy) {
         FuelTransaction transaction = fuelTransactionRepository.findById(transactionId).orElseThrow();
-        if (transaction.getRequestId() == null || !Boolean.FALSE.equals(transaction.getLoaded())) {
+        if (!Boolean.FALSE.equals(transaction.getLoaded())) {
             throw new IllegalStateException("This fuel has already been loaded. Refresh to see the latest.");
         }
         FuelCard card = fuelCardRepository.findById(transaction.getFuelCardId()).orElseThrow();
@@ -114,6 +121,18 @@ public class FuelApprovalService {
         transaction.setLoadedAt(LocalDateTime.now());
         transaction.setRemainingBalance(card.getBalanceLitres());
         fuelTransactionRepository.save(transaction);
+
+        if (transaction.getStationTopUpId() != null) {
+            StationTopUp topUp = stationTopUpRepository.findById(transaction.getStationTopUpId()).orElseThrow();
+            topUp.setStatus(TopUpStatus.COMPLETED);
+            stationTopUpRepository.save(topUp);
+            String station = stationRepository.findById(topUp.getStationId()).map(Station::getName).orElse("Station #" + topUp.getStationId());
+            notifications.notifyStationAdmins(topUp.getStationId(), "Top-up loaded - " + station,
+                    transaction.getAllocatedLitres() + " litres were loaded onto " + station + "'s fuel card "
+                            + card.getCardNumber() + " by " + loadedBy + ".\n",
+                    "/stations/" + topUp.getStationId());
+            return transaction;
+        }
 
         TransportRequest request = requestRepository.findById(transaction.getRequestId()).orElseThrow();
         notifications.notifyUser(request.getDriverId(), "Request #" + request.getId() + ": fuel loaded, you can go",

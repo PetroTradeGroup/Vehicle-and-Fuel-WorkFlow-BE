@@ -12,6 +12,7 @@ import zw.co.petrotrade.workflow.station.Station;
 import zw.co.petrotrade.workflow.station.StationRepository;
 import zw.co.petrotrade.workflow.station.StationTopUp;
 import zw.co.petrotrade.workflow.station.StationTopUpRepository;
+import zw.co.petrotrade.workflow.station.TopUpPurpose;
 import zw.co.petrotrade.workflow.station.TopUpStatus;
 import zw.co.petrotrade.workflow.station.dto.StationResponse;
 
@@ -31,7 +32,8 @@ public class StationReportService {
     private static final Map<TopUpStatus, String> STATUS_LABEL = Map.of(
             TopUpStatus.PENDING_FIRST_APPROVAL, "Awaiting regional rep / retail manager",
             TopUpStatus.PENDING_APPROVAL, "Awaiting HR & Admin",
-            TopUpStatus.COMPLETED, "Approved",
+            TopUpStatus.APPROVED, "Approved, waiting for IT",
+            TopUpStatus.COMPLETED, "Completed",
             TopUpStatus.REJECTED, "Rejected");
 
     private final StationRepository stations;
@@ -88,7 +90,11 @@ public class StationReportService {
         return list.stream().map(t -> {
             Approval decision = decisionByTopUp.get(t.getId());
             return new StationReport.Row(
-                    t.getId(), stationName.get(t.getStationId()), t.getRequestedAt(), t.getLitres(), t.getReason(), t.getRequestedBy(),
+                    t.getId(), stationName.get(t.getStationId()), t.getRequestedAt(), t.getLitres(),
+                    t.getFuelType() == null ? null : t.getFuelType().getName(),
+                    // top-ups from before the purpose was asked were all for the generator
+                    (t.getPurpose() == null ? TopUpPurpose.GENERATOR : t.getPurpose()).label(),
+                    t.getGeneratorHours(), t.getReason(), t.getRequestedBy(),
                     STATUS_LABEL.get(t.getStatus()),
                     decision == null ? null : decision.getApprover(),
                     decision == null ? null : decision.getApprovalDate(),
@@ -96,6 +102,7 @@ public class StationReportService {
         }).toList();
     }
 
+    // received = completed: IT has loaded it onto the card, not just HR & Admin approved
     private static StationReport.Totals totals(List<StationTopUp> list) {
         return new StationReport.Totals(
                 list.size(),

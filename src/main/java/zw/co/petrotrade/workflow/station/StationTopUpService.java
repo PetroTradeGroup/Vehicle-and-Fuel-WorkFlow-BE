@@ -13,6 +13,7 @@ import zw.co.petrotrade.workflow.fuel.FuelCard;
 import zw.co.petrotrade.workflow.fuel.FuelCardService;
 import zw.co.petrotrade.workflow.fuel.FuelTransaction;
 import zw.co.petrotrade.workflow.fuel.FuelTransactionRepository;
+import zw.co.petrotrade.workflow.fuel.FuelTypeRepository;
 import zw.co.petrotrade.workflow.notification.NotificationService;
 import zw.co.petrotrade.workflow.station.dto.StationTopUpRequest;
 import zw.co.petrotrade.workflow.user.Role;
@@ -30,22 +31,46 @@ public class StationTopUpService {
     private final FuelTransactionRepository fuelTransactionRepository;
     private final ApprovalRepository approvalRepository;
     private final NotificationService notifications;
+    private final FuelTypeRepository fuelTypeRepository;
 
     public StationTopUp create(StationTopUpRequest request, String requestedBy) {
         Station station = stationRepository.findById(request.stationId()).orElseThrow();
         // fail now rather than at approval if the station has nothing to credit
         fuelCardService.findActiveCard(CardHolderType.STATION, request.stationId());
+        boolean generator = request.purpose() == TopUpPurpose.GENERATOR;
+        if (request.purpose() == TopUpPurpose.GRASS_CUTTER && request.litres() > TopUpPurpose.GRASS_CUTTER_MAX_LITRES) {
+            throw new IllegalArgumentException(String.format(
+                    "A grass cutter top-up can be at most %.0f litres.", TopUpPurpose.GRASS_CUTTER_MAX_LITRES));
+        }
+        if (generator && request.generatorHours() == null) {
+            throw new IllegalArgumentException("Enter the generator's running hours.");
+        }
+        if (generator) {
+            if (station.getGeneratorHours() != null && request.generatorHours() < station.getGeneratorHours()) {
+                throw new IllegalArgumentException(String.format(
+                        "The generator can't read less than %.1f hours, the last reading for %s.",
+                        station.getGeneratorHours(), station.getName()));
+            }
+            station.setGeneratorHours(request.generatorHours());
+            stationRepository.save(station);
+        }
 
         StationTopUp topUp = new StationTopUp();
         topUp.setStationId(request.stationId());
         topUp.setLitres(request.litres());
+        topUp.setFuelType(fuelTypeRepository.findById(request.fuelTypeId()).orElseThrow());
+        topUp.setPurpose(request.purpose());
+        topUp.setGeneratorHours(generator ? request.generatorHours() : null);
         topUp.setReason(request.reason());
         topUp.setRequestedBy(requestedBy);
         topUp.setRequestedAt(LocalDateTime.now());
         topUp.setStatus(TopUpStatus.PENDING_FIRST_APPROVAL);
         StationTopUp saved = repository.save(topUp);
         notifications.notifyRoles(List.of(Role.REGIONAL_REP, Role.RETAIL_MANAGER), "Top-up approval needed - " + station.getName(),
-                requestedBy + " asks for " + saved.getLitres() + " litres for " + station.getName() + ".\nReason: " + saved.getReason() + "\n",
+                requestedBy + " asks for " + saved.getLitres() + " litres of " + saved.getFuelType().getName() + " for " + station.getName() + ".\n"
+                        + "For: " + saved.getPurpose().label() + "\n"
+                        + (generator ? "Generator hours: " + saved.getGeneratorHours() + "\n" : "")
+                        + "Reason: " + saved.getReason() + "\n",
                 TOP_UPS);
         return saved;
     }
@@ -74,7 +99,7 @@ public class StationTopUpService {
 
         if (!stage.pending() || topUp.getStatus() != stage) {
             throw new IllegalStateException("This top-up has "
-                    + (topUp.getStatus() == TopUpStatus.COMPLETED ? "already been approved"
+                    + (topUp.getStatus() == TopUpStatus.APPROVED || topUp.getStatus() == TopUpStatus.COMPLETED ? "already been approved"
                     : topUp.getStatus() == TopUpStatus.REJECTED ? "already been rejected" : "moved to the next approval")
                     + ". Refresh to see the latest.");
         }
@@ -96,20 +121,25 @@ public class StationTopUpService {
         }
 
         if (approved) {
-            FuelCard card = fuelCardService.credit(
-                    fuelCardService.findActiveCard(CardHolderType.STATION, topUp.getStationId()),
-                    topUp.getLitres());
+            // like trip fuel: the card is picked now but only credited once IT has loaded the fuel onto it
+            FuelCard card = fuelCardService.findActiveCard(CardHolderType.STATION, topUp.getStationId());
 
             FuelTransaction transaction = new FuelTransaction();
             transaction.setStationTopUpId(id);
             transaction.setFuelCardId(card.getId());
             transaction.setAllocatedLitres(topUp.getLitres());
             transaction.setConsumedLitres(0.0);
-            transaction.setRemainingBalance(card.getBalanceLitres());
             transaction.setTransactionDate(LocalDateTime.now());
+            transaction.setLoaded(false);
             fuelTransactionRepository.save(transaction);
 
-            topUp.setStatus(TopUpStatus.COMPLETED);
+            // completed once IT marks it loaded (FuelApprovalService.markLoaded)
+            topUp.setStatus(TopUpStatus.APPROVED);
+            notifications.notifyRoles(List.of(Role.SYSTEM_ADMIN), "Fuel to load - " + stationName(topUp),
+                    "HR & Admin approved " + topUp.getLitres() + " litres"
+                            + (topUp.getFuelType() == null ? "" : " of " + topUp.getFuelType().getName()) + " for " + stationName(topUp)
+                            + ". Load it onto fuel card " + card.getCardNumber() + ", then mark it loaded.\n",
+                    "/fuel-loading");
         } else {
             topUp.setStatus(TopUpStatus.REJECTED);
         }
@@ -131,7 +161,7 @@ public class StationTopUpService {
     private void notifyStation(StationTopUp topUp, boolean approved, String approver, String comments) {
         String station = stationName(topUp);
         notifications.notifyStationAdmins(topUp.getStationId(), "Top-up " + (approved ? "approved" : "rejected") + " - " + station,
-                (approved ? topUp.getLitres() + " litres were loaded onto " + station + "'s fuel card"
+                (approved ? topUp.getLitres() + " litres for " + station + " were approved; IT will load them onto the fuel card and you'll be told when it's done. Approved"
                         : "The request for " + topUp.getLitres() + " litres for " + station + " was rejected")
                         + " by " + approver + ".\n" + (comments == null || comments.isBlank() ? "" : "Comment: " + comments.trim() + "\n"),
                 "/stations/" + topUp.getStationId());

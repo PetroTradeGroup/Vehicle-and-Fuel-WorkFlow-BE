@@ -5,6 +5,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import zw.co.petrotrade.workflow.security.CurrentUser;
+import zw.co.petrotrade.workflow.user.Role;
 import zw.co.petrotrade.workflow.vehicle.dto.VehicleRequest;
 import zw.co.petrotrade.workflow.vehicle.dto.VehicleResponse;
 import zw.co.petrotrade.workflow.vehicle.dto.VehicleServiceRequest;
@@ -17,6 +19,15 @@ import java.util.List;
 public class VehicleController {
 
     private final VehicleServiceImp service;
+    private final CurrentUser currentUser;
+
+    // service due dates are for the fleet roles; everyone else gets the vehicle without them
+    private VehicleResponse view(Vehicle vehicle) {
+        VehicleResponse v = VehicleResponse.from(vehicle);
+        return currentUser.has(Role.HR_ADMIN_MANAGER, Role.VEHICLE_ADMIN, Role.SYSTEM_ADMIN) ? v
+                : new VehicleResponse(v.id(), v.registrationNumber(), v.make(), v.model(), v.fuelType(), v.status(),
+                        v.odometerKm(), null, null, null, null);
+    }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -25,7 +36,6 @@ public class VehicleController {
         return VehicleResponse.from(service.create(request));
     }
 
-    // no params: every vehicle, as before. ?q=aaz&status=AVAILABLE searches the whole fleet
     @GetMapping
     public List<VehicleResponse> list(
             @RequestParam(required = false) String q,
@@ -33,12 +43,12 @@ public class VehicleController {
         List<Vehicle> found = (q == null || q.isBlank()) && status == null
                 ? service.findAll()
                 : service.search(q, status);
-        return found.stream().map(VehicleResponse::from).toList();
+        return found.stream().map(this::view).toList();
     }
 
     @GetMapping("/{id}")
     public VehicleResponse get(@PathVariable Long id) {
-        return VehicleResponse.from(service.findById(id));
+        return view(service.findById(id));
     }
 
     @PutMapping("/{id}")

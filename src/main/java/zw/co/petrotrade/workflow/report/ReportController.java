@@ -160,7 +160,7 @@ public class ReportController {
         String summary = t.requests() + " top-ups   ·   " + TableExport.format(t.litresRequested()) + " L requested   ·   "
                 + TableExport.format(t.litresReceived()) + " L received   ·   " + t.pending() + " pending   ·   " + t.rejected() + " rejected";
         byte[] file = TableExport.pdf("Station top-ups report", topUpMeta(report), summary, TOP_UP_COLUMNS,
-                new float[]{4, 11, 9, 9, 5, 12, 7, 9, 9, 10}, report.rows(),
+                new float[]{4, 8, 8, 8, 5, 6, 6, 6, 8, 7, 7, 6, 6}, report.rows(),
                 "Total: " + t.requests() + " top-ups", Map.of("Litres", t.litresReceived()));
         return download(file, MediaType.APPLICATION_PDF, topUpFileName(report, "pdf"));
     }

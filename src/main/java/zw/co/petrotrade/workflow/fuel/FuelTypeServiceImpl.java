@@ -3,6 +3,7 @@ package zw.co.petrotrade.workflow.fuel;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import zw.co.petrotrade.workflow.fuel.dto.FuelTypeRequest;
+import zw.co.petrotrade.workflow.station.StationTopUpRepository;
 import zw.co.petrotrade.workflow.transport.TransportRequestRepository;
 import zw.co.petrotrade.workflow.vehicle.VehicleRepository;
 
@@ -15,6 +16,7 @@ public class FuelTypeServiceImpl implements FuelTypeService {
     private final FuelTypeRepository repository;
     private final TransportRequestRepository transportRequestRepository;
     private final VehicleRepository vehicleRepository;
+    private final StationTopUpRepository stationTopUpRepository;
 
     public FuelType create(FuelTypeRequest request) {
         if (repository.existsByCode(request.code())) {
@@ -46,6 +48,9 @@ public class FuelTypeServiceImpl implements FuelTypeService {
         FuelType fuelType = findById(id);
         if (transportRequestRepository.existsByFuelType(fuelType)) {
             throw new IllegalStateException("Fuel type " + fuelType.getCode() + " is used by transport requests");
+        }
+        if (stationTopUpRepository.existsByFuelType(fuelType)) {
+            throw new IllegalStateException("Fuel type " + fuelType.getCode() + " is used by station top-ups");
         }
         if (vehicleRepository.existsByFuelType(fuelType)) {
             throw new IllegalStateException("Fuel type " + fuelType.getCode() + " is set on vehicles. Change those vehicles first.");

@@ -9,6 +9,8 @@ public interface StationTopUpRepository extends JpaRepository<StationTopUp, Long
 
     List<StationTopUp> findByStationIdOrderByIdDesc(Long stationId);
 
+    boolean existsByFuelType(zw.co.petrotrade.workflow.fuel.FuelType fuelType);
+
     long countByStationIdAndStatusIn(Long stationId, java.util.Collection<TopUpStatus> statuses);
 
     // requested within [from, to), any station
